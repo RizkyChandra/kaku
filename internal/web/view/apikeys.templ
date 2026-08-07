@@ -1,0 +1,89 @@
+package view
+
+import (
+	"strconv"
+
+	"github.com/RizkyChandra/kaku/internal/db"
+)
+
+// APIKeys lists the Content API keys. created holds a freshly minted key, which
+// is the one and only time it can be shown.
+templ APIKeys(p Page, keys []db.ListApiKeysRow, created, errMsg string) {
+	@Shell(p) {
+		@PageHeader("Content API keys")
+		<p class="-mt-4 mb-6 max-w-prose text-ink-600">
+			Readers authenticate with
+			<code class="rounded bg-ink-100 px-1 py-0.5 text-sm">Authorization: Kaku &lt;key&gt;</code>.
+		</p>
+		if created != "" {
+			<div class="mb-6 rounded-lg border border-vermilion bg-vermilion/5 p-4" role="alert">
+				<p class="font-medium">Copy this key now — it cannot be shown again.</p>
+				<code class="mt-2 block overflow-x-auto rounded bg-ink-900 px-3 py-2 font-mono text-sm text-ink-50">{ created }</code>
+			</div>
+		}
+		if errMsg != "" {
+			<p class="mb-6 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ errMsg }</p>
+		}
+		<form method="post" action="/admin/keys" class="mb-8 flex gap-2">
+			<label class="sr-only" for="name">Key name</label>
+			<input
+				id="name"
+				name="name"
+				required
+				maxlength="80"
+				placeholder="Key name, e.g. marketing site"
+				class="w-72 rounded-md border border-ink-200 bg-white px-3 py-2 focus:border-vermilion focus:outline-none"
+			/>
+			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
+				Create key
+			</button>
+		</form>
+		@APIKeyTable(keys)
+	}
+}
+
+// APIKeyTable is its own component so revoking can swap just the table.
+templ APIKeyTable(keys []db.ListApiKeysRow) {
+	<div id="keys" class="overflow-hidden rounded-lg border border-ink-200 bg-white">
+		if len(keys) == 0 {
+			<p class="px-4 py-10 text-center text-ink-400">No keys yet. Create one to read the Content API.</p>
+		} else {
+			<table class="w-full text-sm">
+				<thead class="border-b border-ink-200 text-left text-xs uppercase tracking-wide text-ink-400">
+					<tr>
+						<th class="px-4 py-3 font-medium">Name</th>
+						<th class="px-4 py-3 font-medium">Created by</th>
+						<th class="px-4 py-3 font-medium">Created</th>
+						<th class="px-4 py-3 font-medium">Last used</th>
+						<th class="px-4 py-3"><span class="sr-only">Actions</span></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, k := range keys {
+						<tr class="border-b border-ink-100 last:border-0">
+							<td class="px-4 py-3 font-medium">{ k.Name }</td>
+							<td class="px-4 py-3 text-ink-600">{ k.CreatedByName }</td>
+							<td class="px-4 py-3 text-ink-600">{ k.CreatedAt.Format("2006-01-02") }</td>
+							<td class="px-4 py-3 text-ink-600">
+								if k.LastUsedAt != nil {
+									{ k.LastUsedAt.Format("2006-01-02") }
+								} else {
+									Never
+								}
+							</td>
+							<td class="px-4 py-3 text-right">
+								<button
+									hx-post={ "/admin/keys/" + strconv.FormatInt(k.ID, 10) + "/delete" }
+									hx-target="#keys"
+									hx-swap="outerHTML"
+									hx-confirm={ "Revoke " + k.Name + "? Anything using this key stops working immediately." }
+									class="text-ink-400 underline underline-offset-2 hover:text-vermilion"
+								>Revoke</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
