@@ -14,9 +14,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/RizkyChandra/kaku/internal/admin"
 	"github.com/RizkyChandra/kaku/internal/config"
 	"github.com/RizkyChandra/kaku/internal/db"
 	"github.com/RizkyChandra/kaku/internal/web/static"
+	"github.com/RizkyChandra/kaku/internal/web/view"
 )
 
 // version is stamped by goreleaser via -ldflags.
@@ -49,7 +51,8 @@ func run() error {
 	}
 	defer sqlDB.Close()
 	slog.Info("database ready", "path", cfg.DBPath)
-	_ = db.New(sqlDB) // queries; wired up as features land
+	q := db.New(sqlDB)
+	view.AssetVersion = version
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
@@ -60,6 +63,10 @@ func run() error {
 		_, _ = w.Write([]byte(`{"status":"ok","version":"` + version + `"}`))
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", staticHandler(cfg)))
+	r.Mount("/admin", admin.New(q).Router())
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin", http.StatusFound)
+	})
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
