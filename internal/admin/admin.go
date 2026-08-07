@@ -11,16 +11,24 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/RizkyChandra/kaku/internal/auth"
+	"github.com/RizkyChandra/kaku/internal/config"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/media"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
 
 type Handler struct {
 	q    *db.Queries
 	auth *auth.Service
+	// nil when no S3 bucket is configured; upload handlers must say so rather
+	// than panic, since Kaku is usable without media.
+	media *media.Store
+	cfg   config.Config
 }
 
-func New(q *db.Queries, a *auth.Service) *Handler { return &Handler{q: q, auth: a} }
+func New(q *db.Queries, a *auth.Service, m *media.Store, cfg config.Config) *Handler {
+	return &Handler{q: q, auth: a, media: m, cfg: cfg}
+}
 
 func (h *Handler) Router() chi.Router {
 	r := chi.NewRouter()
@@ -33,6 +41,14 @@ func (h *Handler) Router() chi.Router {
 		r.Use(h.auth.RequireAuth)
 		r.Get("/", h.dashboard)
 		r.Post("/logout", h.logout)
+
+		// Each feature registers its own routes from its own file.
+		h.mountPosts(r)
+		h.mountTags(r)
+		h.mountMedia(r)
+		h.mountUsers(r)
+		h.mountSettings(r)
+		h.mountAPIKeys(r)
 	})
 	return r
 }

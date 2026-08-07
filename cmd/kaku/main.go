@@ -16,9 +16,12 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/RizkyChandra/kaku/internal/admin"
+	"github.com/RizkyChandra/kaku/internal/api"
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/config"
+	"github.com/RizkyChandra/kaku/internal/content"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/media"
 	"github.com/RizkyChandra/kaku/internal/web/static"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
@@ -64,6 +67,25 @@ func run() error {
 	}
 	sessions := auth.New(q, !cfg.IsDev())
 
+	// Media is optional: Kaku runs fine with no object storage, uploads just fail.
+	var store *media.Store
+	if cfg.S3.Bucket != "" {
+		store, err = media.New(ctx, cfg.S3)
+		if err != nil {
+			return err
+		}
+		if err := store.EnsureBucket(ctx); err != nil {
+			slog.Warn("could not ensure media bucket exists", "bucket", cfg.S3.Bucket, "err", err)
+		}
+	} else {
+		slog.Warn("no KAKU_S3_BUCKET configured; media uploads are disabled")
+	}
+
+	scheduler := &content.Scheduler{PublishDue: func(ctx context.Context) (int64, error) {
+		return q.PublishDuePosts(ctx)
+	}}
+	go scheduler.Run(ctx)
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
@@ -73,7 +95,8 @@ func run() error {
 		_, _ = w.Write([]byte(`{"status":"ok","version":"` + version + `"}`))
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", staticHandler(cfg)))
-	r.Mount("/admin", admin.New(q, sessions).Router())
+	r.Mount("/admin", admin.New(q, sessions, store, cfg).Router())
+	r.Mount("/api/v1", api.New(q).Router())
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin", http.StatusFound)
 	})
