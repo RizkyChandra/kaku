@@ -12,13 +12,22 @@ INSERT INTO posts (
 )
 RETURNING *;
 
+-- Every parameter is named: mixing sqlc.arg() with positional ? makes SQLite
+-- number the trailing ? after the highest explicit index, and sqlc then binds
+-- one argument too few.
 -- name: UpdatePost :one
 UPDATE posts SET
-    title = ?, slug = ?, markdown = ?, html = ?, excerpt = ?, feature_image = ?,
-    status = ?, visibility = ?,
+    title = sqlc.arg(title),
+    slug = sqlc.arg(slug),
+    markdown = sqlc.arg(markdown),
+    html = sqlc.arg(html),
+    excerpt = sqlc.arg(excerpt),
+    feature_image = sqlc.arg(feature_image),
+    status = sqlc.arg(status),
+    visibility = sqlc.arg(visibility),
     published_at = strftime('%Y-%m-%dT%H:%M:%fZ', sqlc.arg(published_at)),
     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-WHERE id = ?
+WHERE id = sqlc.arg(id)
 RETURNING *;
 
 -- name: GetPost :one
@@ -76,6 +85,13 @@ LIMIT ? OFFSET ?;
 -- name: CountPublishedPosts :one
 SELECT count(*) FROM posts
 WHERE type = ? AND status = 'published' AND visibility = 'public';
+
+-- name: CountPublishedPostsByTag :one
+SELECT count(*)
+FROM posts p
+JOIN post_tags pt ON pt.post_id = p.id
+JOIN tags t ON t.id = pt.tag_id
+WHERE t.slug = ? AND p.status = 'published' AND p.visibility = 'public';
 
 -- name: GetPublishedPostBySlug :one
 SELECT p.*, u.name AS author_name
