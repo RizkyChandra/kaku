@@ -46,7 +46,7 @@ func apikeyEnv(t *testing.T, role string) (http.Handler, *db.Queries, *http.Cook
 	if _, err := sessions.Login(ctx, w, "boss@example.com", "hunter2hunter2"); err != nil {
 		t.Fatalf("login: %v", err)
 	}
-	return New(q, sessions, nil, config.Config{}).Router(), q, w.Result().Cookies()[0]
+	return New(q, sessions, nil, nil, config.Config{}).Router(), q, w.Result().Cookies()[0]
 }
 
 func apikeyDo(t *testing.T, h http.Handler, c *http.Cookie, method, path string, form url.Values) *httptest.ResponseRecorder {

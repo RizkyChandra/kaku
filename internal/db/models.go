@@ -26,6 +26,7 @@ type Medium struct {
 	Size       int64     `json:"size"`
 	UploadedBy int64     `json:"uploaded_by"`
 	CreatedAt  time.Time `json:"created_at"`
+	Alt        string    `json:"alt"`
 }
 
 type Post struct {

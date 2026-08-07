@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -34,7 +35,13 @@ func searchPost(t *testing.T, q *db.Queries, author db.User, title, markdown str
 // searchFor runs a query through the HTTP handler and returns the body.
 func searchFor(t *testing.T, router http.Handler, c *http.Cookie, query string, htmx bool) *httptest.ResponseRecorder {
 	t.Helper()
-	r := httptest.NewRequest(http.MethodGet, "/admin/search?q="+url.QueryEscape(query), nil)
+	return searchGet(t, router, c, "/admin/search?q="+url.QueryEscape(query), htmx)
+}
+
+// searchGet fetches any search URL, so page tests can add ?page=.
+func searchGet(t *testing.T, router http.Handler, c *http.Cookie, path string, htmx bool) *httptest.ResponseRecorder {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodGet, path, nil)
 	r.AddCookie(c)
 	if htmx {
 		r.Header.Set("HX-Request", "true")
@@ -42,7 +49,7 @@ func searchFor(t *testing.T, router http.Handler, c *http.Cookie, query string, 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("GET search %q: status = %d: %s", query, w.Code, w.Body)
+		t.Fatalf("GET %s: status = %d: %s", path, w.Code, w.Body)
 	}
 	return w
 }
@@ -134,6 +141,69 @@ func TestSearchEmptyQueryReturnsNothing(t *testing.T) {
 	for _, query := range []string{"", "   "} {
 		if body := searchFor(t, router, c, query, false).Body.String(); strings.Contains(body, "Findable Piece") {
 			t.Errorf("empty query %q returned results: %s", query, body)
+		}
+	}
+}
+
+// Every row links to its post, so counting those links counts the page.
+func searchRows(body string) int { return strings.Count(body, `href="/admin/posts/`) }
+
+func TestSearchPaginates(t *testing.T) {
+	h, q, router := newTest(t)
+	u := newUser(t, q, "writer@example.com", auth.RoleAuthor)
+	c := login(t, h, u)
+	for i := 0; i < searchLimit+5; i++ {
+		searchPost(t, q, u, "Wombat "+strconv.Itoa(i), "wombat sighting")
+	}
+
+	one := searchFor(t, router, c, "wombat", true).Body.String()
+	if got := searchRows(one); got != searchLimit {
+		t.Errorf("page 1 has %d rows, want %d", got, searchLimit)
+	}
+	two := searchGet(t, router, c, "/admin/search?q=wombat&page=2", true).Body.String()
+	if got := searchRows(two); got != 5 {
+		t.Errorf("page 2 has %d rows, want 5: %s", got, two)
+	}
+
+	// The pager has to carry the query, or page 2 searches for nothing.
+	if !strings.Contains(one, "page=2") || !strings.Contains(one, "q=wombat") {
+		t.Errorf("pager dropped the query: %s", one)
+	}
+	if !strings.Contains(two, "Page 2 of 2") {
+		t.Errorf("page 2 pager is wrong: %s", two)
+	}
+}
+
+func TestSearchHighlightsMatch(t *testing.T) {
+	h, q, router := newTest(t)
+	u := newUser(t, q, "writer@example.com", auth.RoleAuthor)
+	c := login(t, h, u)
+	searchPost(t, q, u, "Kyoto Notebook", "Ramen in a back alley near the river.")
+
+	body := searchFor(t, router, c, "alley", true).Body.String()
+	if !strings.Contains(body, "<mark") || !strings.Contains(body, "alley</mark>") {
+		t.Errorf("match is not highlighted: %s", body)
+	}
+}
+
+// The snippet is post body text, so it is escaped before the markers become
+// markup. Get that order wrong and a post is a stored XSS.
+func TestSearchEscapesSnippetHTML(t *testing.T) {
+	h, q, router := newTest(t)
+	u := newUser(t, q, "writer@example.com", auth.RoleAuthor)
+	c := login(t, h, u)
+	searchPost(t, q, u, "Innocent Title", "<script>alert(1)</script> aardvark")
+
+	for _, htmx := range []bool{true, false} {
+		body := searchFor(t, router, c, "aardvark", htmx).Body.String()
+		if strings.Contains(body, "<script>alert(1)") {
+			t.Errorf("htmx=%v: live script tag in the response: %s", htmx, body)
+		}
+		if !strings.Contains(body, "&lt;script&gt;alert(1)") {
+			t.Errorf("htmx=%v: script tag was not escaped into the snippet: %s", htmx, body)
+		}
+		if !strings.Contains(body, "aardvark</mark>") {
+			t.Errorf("htmx=%v: escaping lost the highlight: %s", htmx, body)
 		}
 	}
 }

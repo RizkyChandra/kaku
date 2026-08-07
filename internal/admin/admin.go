@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/RizkyChandra/kaku/internal/auth"
+	"github.com/RizkyChandra/kaku/internal/backup"
 	"github.com/RizkyChandra/kaku/internal/config"
 	"github.com/RizkyChandra/kaku/internal/db"
 	"github.com/RizkyChandra/kaku/internal/media"
@@ -23,11 +24,15 @@ type Handler struct {
 	// nil when no S3 bucket is configured; upload handlers must say so rather
 	// than panic, since Kaku is usable without media.
 	media *media.Store
-	cfg   config.Config
+	// nil when no bucket is configured; the backup handler says so rather than
+	// pretending it worked.
+	backups *backup.Backup
+	cfg     config.Config
+	limiter *auth.Limiter
 }
 
-func New(q *db.Queries, a *auth.Service, m *media.Store, cfg config.Config) *Handler {
-	return &Handler{q: q, auth: a, media: m, cfg: cfg}
+func New(q *db.Queries, a *auth.Service, m *media.Store, b *backup.Backup, cfg config.Config) *Handler {
+	return &Handler{q: q, auth: a, media: m, backups: b, cfg: cfg, limiter: auth.NewLimiter()}
 }
 
 func (h *Handler) Router() chi.Router {
@@ -55,7 +60,49 @@ func (h *Handler) Router() chi.Router {
 }
 
 func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
-	render(w, r, view.Dashboard(h.page(r, "Dashboard", "dashboard")))
+	ctx := r.Context()
+	d := view.DashboardData{}
+
+	// Counts are cheap on SQLite and a dashboard that silently hides a failed
+	// count is worse than one showing zero, so a failure is logged and the
+	// screen still renders.
+	count := func(name string, f func() (int64, error)) int64 {
+		n, err := f()
+		if err != nil {
+			slog.ErrorContext(ctx, "dashboard count", "which", name, "err", err)
+		}
+		return n
+	}
+
+	posts := count("posts", func() (int64, error) { return h.q.CountPosts(ctx, "post") })
+	pages := count("pages", func() (int64, error) { return h.q.CountPosts(ctx, "page") })
+	d.Drafts = count("drafts", func() (int64, error) {
+		return h.q.CountPostsByStatus(ctx, db.CountPostsByStatusParams{Type: "post", Status: "draft"})
+	})
+	d.Scheduled = count("scheduled", func() (int64, error) {
+		return h.q.CountPostsByStatus(ctx, db.CountPostsByStatusParams{Type: "post", Status: "scheduled"})
+	})
+	d.Stats = []view.Stat{
+		{Label: "Posts", Count: posts, Href: "/admin/posts"},
+		{Label: "Pages", Count: pages, Href: "/admin/pages"},
+		{Label: "Drafts", Count: d.Drafts, Href: "/admin/posts?status=draft"},
+		{Label: "Tags", Count: count("tags", func() (int64, error) { return h.q.CountTags(ctx) }), Href: "/admin/tags"},
+		{Label: "Media", Count: count("media", func() (int64, error) { return h.q.CountMedia(ctx) }), Href: "/admin/media"},
+		{Label: "Staff", Count: count("users", func() (int64, error) { return h.q.CountUsers(ctx) }), Href: "/admin/users"},
+	}
+
+	if rows, err := h.q.ListPosts(ctx, db.ListPostsParams{Type: "post", Limit: 5, Offset: 0}); err != nil {
+		slog.ErrorContext(ctx, "dashboard recent posts", "err", err)
+	} else {
+		for _, row := range rows {
+			d.Recent = append(d.Recent, view.PostRow{
+				ID: row.ID, Title: row.Title, Slug: row.Slug,
+				Status: row.Status, Author: row.AuthorName,
+			})
+		}
+	}
+
+	render(w, r, view.Dashboard(h.page(r, "Dashboard", "dashboard"), d))
 }
 
 func (h *Handler) loginForm(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +111,20 @@ func (h *Handler) loginForm(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	next := safeNext(r.FormValue("next"))
-	_, err := h.auth.Login(r.Context(), w, strings.TrimSpace(r.FormValue("email")), r.FormValue("password"))
+	email := strings.TrimSpace(r.FormValue("email"))
+	ip := auth.ClientIP(r)
+
+	// A throttled attempt must be indistinguishable from a wrong password, or
+	// the limiter becomes an account-existence oracle.
+	if !h.limiter.Allow(ip, email) {
+		slog.WarnContext(r.Context(), "login throttled", "ip", ip)
+		renderStatus(w, r, http.StatusUnauthorized, view.Login(next, "Invalid email or password."))
+		return
+	}
+
+	_, err := h.auth.Login(r.Context(), w, email, r.FormValue("password"))
 	if err != nil {
+		h.limiter.Fail(ip, email)
 		if !errors.Is(err, auth.ErrInvalidCredentials) {
 			slog.ErrorContext(r.Context(), "login", "err", err)
 			renderStatus(w, r, http.StatusInternalServerError, view.Login(next, "Something went wrong. Try again."))
@@ -74,6 +133,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		renderStatus(w, r, http.StatusUnauthorized, view.Login(next, "Invalid email or password."))
 		return
 	}
+	h.limiter.Succeed(email)
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
@@ -86,7 +146,13 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 
 // page fills in the chrome every screen needs.
 func (h *Handler) page(r *http.Request, title, active string) view.Page {
-	p := view.Page{Title: title, Active: active}
+	s := db.LoadSettings(r.Context(), h.q)
+	p := view.Page{
+		Title:     title,
+		Active:    active,
+		SiteTitle: s.Get("site_title"),
+		Footer:    s.Get("footer_text"),
+	}
 	if u, ok := auth.UserFrom(r.Context()); ok {
 		p.User = &u
 	}

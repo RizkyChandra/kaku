@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -69,7 +70,7 @@ func mediaSetup(t *testing.T, role string, withStore bool) mediaFixture {
 	if _, err := sessions.Login(t.Context(), rec, "u@example.com", "kakukaku"); err != nil {
 		t.Fatal(err)
 	}
-	return mediaFixture{h: New(q, sessions, store, config.Config{}), q: q, cookie: rec.Result().Cookies()[0]}
+	return mediaFixture{h: New(q, sessions, store, nil, config.Config{}), q: q, cookie: rec.Result().Cookies()[0]}
 }
 
 func (f mediaFixture) do(req *http.Request) *httptest.ResponseRecorder {
@@ -114,6 +115,22 @@ func mediaPNG(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	return buf.Bytes()
+}
+
+func mediaAltRequest(alt string) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "/media/1/alt", strings.NewReader(url.Values{"alt": {alt}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return req
+}
+
+// mediaAltOf reads back what was actually stored.
+func mediaAltOf(t *testing.T, f mediaFixture) string {
+	t.Helper()
+	m, err := f.q.GetMedia(t.Context(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m.Alt
 }
 
 func TestMediaUploadPNG(t *testing.T) {
@@ -179,6 +196,81 @@ func TestMediaDeleteForbiddenForAuthors(t *testing.T) {
 	}
 	if n := f.count(t); n != 1 {
 		t.Errorf("rows = %d, want 1", n)
+	}
+}
+
+// A contributor is the least-privileged signed-in role: captioning is not
+// destructive, so it must reach further than delete does.
+func TestMediaAltPersistsAndRenders(t *testing.T) {
+	f := mediaSetup(t, auth.RoleContributor, true)
+	if rec := f.do(mediaUploadRequest(t, "cat.png", mediaPNG(t))); rec.Code != http.StatusOK {
+		t.Fatalf("upload status = %d: %s", rec.Code, rec.Body)
+	}
+	// Untouched, the tile still carries an alt attribute: the filename.
+	if body := f.do(httptest.NewRequest(http.MethodGet, "/media", nil)).Body.String(); !strings.Contains(body, `alt="cat.png"`) {
+		t.Errorf("uncaptioned tile has no filename alt: %s", body)
+	}
+
+	rec := f.do(mediaAltRequest("  A cat asleep on a keyboard  "))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
+	}
+	if got := mediaAltOf(t, f); got != "A cat asleep on a keyboard" {
+		t.Errorf("stored alt = %q, want it trimmed", got)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`alt="A cat asleep on a keyboard"`,   // the image describes itself
+		`value="A cat asleep on a keyboard"`, // and the field shows it back
+		`![A cat asleep on a keyboard](`,     // markdown copy carries it
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("tile is missing %s: %s", want, body)
+		}
+	}
+	// The caption survives a reload, not just the swap.
+	if body := f.do(httptest.NewRequest(http.MethodGet, "/media", nil)).Body.String(); !strings.Contains(body, "A cat asleep on a keyboard") {
+		t.Error("caption did not survive to the index")
+	}
+}
+
+func TestMediaAltIsEscaped(t *testing.T) {
+	f := mediaSetup(t, auth.RoleAdmin, true)
+	if rec := f.do(mediaUploadRequest(t, "xss.png", mediaPNG(t))); rec.Code != http.StatusOK {
+		t.Fatalf("upload status = %d: %s", rec.Code, rec.Body)
+	}
+
+	const payload = `<script>alert("x")</script>`
+	rec := f.do(mediaAltRequest(payload))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
+	}
+	if got := mediaAltOf(t, f); got != payload {
+		t.Errorf("stored alt = %q, want it kept verbatim", got)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "<script>") {
+		t.Errorf("live script tag in the response: %s", body)
+	}
+	if !strings.Contains(body, "&lt;script&gt;") {
+		t.Errorf("payload was dropped rather than escaped: %s", body)
+	}
+}
+
+func TestMediaAltTooLongIsRejected(t *testing.T) {
+	f := mediaSetup(t, auth.RoleAdmin, true)
+	if rec := f.do(mediaUploadRequest(t, "long.png", mediaPNG(t))); rec.Code != http.StatusOK {
+		t.Fatalf("upload status = %d: %s", rec.Code, rec.Body)
+	}
+	if rec := f.do(mediaAltRequest(strings.Repeat("猫", mediaAltMax+1))); rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	if got := mediaAltOf(t, f); got != "" {
+		t.Errorf("stored alt = %q, want nothing written", got)
+	}
+	// The cap counts characters, not bytes: the same text one rune shorter fits.
+	if rec := f.do(mediaAltRequest(strings.Repeat("猫", mediaAltMax))); rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200 at exactly the cap", rec.Code)
 	}
 }
 

@@ -21,9 +21,9 @@ func (q *Queries) CountMedia(ctx context.Context) (int64, error) {
 }
 
 const createMedia = `-- name: CreateMedia :one
-INSERT INTO media (key, filename, url, mime, size, uploaded_by)
-VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, "key", filename, url, mime, size, uploaded_by, created_at
+INSERT INTO media (key, filename, url, mime, size, uploaded_by, alt)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING id, "key", filename, url, mime, size, uploaded_by, created_at, alt
 `
 
 type CreateMediaParams struct {
@@ -33,6 +33,7 @@ type CreateMediaParams struct {
 	Mime       string `json:"mime"`
 	Size       int64  `json:"size"`
 	UploadedBy int64  `json:"uploaded_by"`
+	Alt        string `json:"alt"`
 }
 
 func (q *Queries) CreateMedia(ctx context.Context, arg CreateMediaParams) (Medium, error) {
@@ -43,6 +44,7 @@ func (q *Queries) CreateMedia(ctx context.Context, arg CreateMediaParams) (Mediu
 		arg.Mime,
 		arg.Size,
 		arg.UploadedBy,
+		arg.Alt,
 	)
 	var i Medium
 	err := row.Scan(
@@ -54,6 +56,7 @@ func (q *Queries) CreateMedia(ctx context.Context, arg CreateMediaParams) (Mediu
 		&i.Size,
 		&i.UploadedBy,
 		&i.CreatedAt,
+		&i.Alt,
 	)
 	return i, err
 }
@@ -68,7 +71,7 @@ func (q *Queries) DeleteMedia(ctx context.Context, id int64) error {
 }
 
 const getMedia = `-- name: GetMedia :one
-SELECT id, "key", filename, url, mime, size, uploaded_by, created_at FROM media WHERE id = ?
+SELECT id, "key", filename, url, mime, size, uploaded_by, created_at, alt FROM media WHERE id = ?
 `
 
 func (q *Queries) GetMedia(ctx context.Context, id int64) (Medium, error) {
@@ -83,12 +86,13 @@ func (q *Queries) GetMedia(ctx context.Context, id int64) (Medium, error) {
 		&i.Size,
 		&i.UploadedBy,
 		&i.CreatedAt,
+		&i.Alt,
 	)
 	return i, err
 }
 
 const listMedia = `-- name: ListMedia :many
-SELECT id, "key", filename, url, mime, size, uploaded_by, created_at FROM media ORDER BY created_at DESC LIMIT ? OFFSET ?
+SELECT id, "key", filename, url, mime, size, uploaded_by, created_at, alt FROM media ORDER BY created_at DESC LIMIT ? OFFSET ?
 `
 
 type ListMediaParams struct {
@@ -114,6 +118,7 @@ func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]Medium,
 			&i.Size,
 			&i.UploadedBy,
 			&i.CreatedAt,
+			&i.Alt,
 		); err != nil {
 			return nil, err
 		}
@@ -126,4 +131,18 @@ func (q *Queries) ListMedia(ctx context.Context, arg ListMediaParams) ([]Medium,
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateMediaAlt = `-- name: UpdateMediaAlt :exec
+UPDATE media SET alt = ? WHERE id = ?
+`
+
+type UpdateMediaAltParams struct {
+	Alt string `json:"alt"`
+	ID  int64  `json:"id"`
+}
+
+func (q *Queries) UpdateMediaAlt(ctx context.Context, arg UpdateMediaAltParams) error {
+	_, err := q.db.ExecContext(ctx, updateMediaAlt, arg.Alt, arg.ID)
+	return err
 }

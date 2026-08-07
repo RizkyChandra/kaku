@@ -73,13 +73,68 @@ templ Media(p Page, m MediaList) {
 	}
 }
 
-// MediaTile is also served on its own as the htmx fragment for a new upload.
+// mediaAltText is what the tile's own img says. An untyped alt falls back to
+// the filename: a screen reader announcing "cat-photo.png" is poor, but a
+// missing alt attribute makes the image invisible, which is worse.
+func mediaAltText(m db.Medium) string {
+	if m.Alt != "" {
+		return m.Alt
+	}
+	return m.Filename
+}
+
+// MediaTile is also served on its own as the htmx fragment for a new upload
+// and after a caption edit.
 templ MediaTile(m db.Medium, canDelete bool) {
 	<figure id={ fmt.Sprintf("media-%d", m.ID) } class="overflow-hidden rounded-lg border border-ink-200 bg-white">
-		<img src={ m.Url } alt={ m.Filename } loading="lazy" class="aspect-square w-full bg-ink-100 object-cover"/>
+		// Fixed square tiles with explicit width/height and object-cover keep
+		// the browser from laying out and painting at full resolution, and
+		// decoding off the main thread keeps the grid scrollable. It does NOT
+		// shrink the download: a 4 MB photo is still 4 MB on the wire. Real
+		// thumbnails need a resize at upload time writing a second object; that
+		// is the upgrade path, and it is not this change.
+		<img
+			src={ m.Url }
+			alt={ mediaAltText(m) }
+			width="400"
+			height="400"
+			loading="lazy"
+			decoding="async"
+			class="aspect-square w-full bg-ink-100 object-cover"
+		/>
 		<figcaption class="p-3">
 			<p class="truncate text-sm" title={ m.Filename }>{ m.Filename }</p>
+			<form
+				class="mt-2"
+				hx-post={ fmt.Sprintf("/admin/media/%d/alt", m.ID) }
+				hx-target={ fmt.Sprintf("#media-%d", m.ID) }
+				hx-swap="outerHTML"
+			>
+				<label for={ fmt.Sprintf("alt-%d", m.ID) } class="block text-xs text-ink-400">Alt text</label>
+				<div class="mt-1 flex gap-2">
+					<input
+						id={ fmt.Sprintf("alt-%d", m.ID) }
+						name="alt"
+						value={ m.Alt }
+						maxlength="300"
+						placeholder="Describe this image"
+						class="min-w-0 flex-1 rounded-md border border-ink-200 px-2 py-1 text-xs"
+					/>
+					<button
+						type="submit"
+						aria-label={ fmt.Sprintf("Save the alt text of %s", m.Filename) }
+						class="rounded-md bg-ink-100 px-2 py-1 text-xs font-medium hover:bg-ink-200"
+					>Save</button>
+				</div>
+			</form>
 			<div class="mt-2 flex items-center gap-3 text-xs">
+				<button
+					type="button"
+					data-md={ fmt.Sprintf("![%s](%s)", mediaAltText(m), m.Url) }
+					aria-label={ fmt.Sprintf("Copy %s as markdown, with its alt text", m.Filename) }
+					onclick="navigator.clipboard.writeText(this.dataset.md); this.textContent = 'Copied'"
+					class="text-ink-600 underline underline-offset-2 hover:text-vermilion"
+				>Copy markdown</button>
 				<button
 					type="button"
 					data-url={ m.Url }

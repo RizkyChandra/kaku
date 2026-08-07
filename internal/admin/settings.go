@@ -60,6 +60,7 @@ func (h *Handler) mountSettings(r chi.Router) {
 		r.Use(auth.RequireRole(auth.RoleOwner, auth.RoleAdmin))
 		r.Get("/settings", h.settings)
 		r.Post("/settings", h.saveSettings)
+		r.Post("/backup", h.backupNow)
 	})
 }
 
@@ -149,7 +150,39 @@ func (h *Handler) settingsData(r *http.Request, values, errs map[string]string, 
 			{Label: "Database", Value: h.cfg.DBPath},
 			{Label: "Media (S3 bucket)", Value: settingYesNo(h.cfg.S3.Bucket != "")},
 		},
-		Saved: saved,
+		Saved:          saved,
+		BackupsEnabled: h.backups != nil,
+	}
+}
+
+// backupNow runs a backup on demand and swaps the panel with the outcome. It is
+// slow by nature, so nothing here is done in a goroutine: the operator asked and
+// should be told whether it worked.
+func (h *Handler) backupNow(w http.ResponseWriter, r *http.Request) {
+	if h.backups == nil {
+		render(w, r, view.BackupPanel(false, "", ""))
+		return
+	}
+	res, err := h.backups.Once(r.Context())
+	if err != nil {
+		slog.ErrorContext(r.Context(), "manual backup", "err", err)
+		renderStatus(w, r, http.StatusInternalServerError,
+			view.BackupPanel(true, "", "Backup failed. Check the server log."))
+		return
+	}
+	render(w, r, view.BackupPanel(true, fmt.Sprintf("Backed up %s (%s).", res.Key, settingBytes(res.Size)), ""))
+}
+
+// settingBytes is a human size for the backup message; three units is enough for
+// a SQLite file.
+func settingBytes(n int64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
+	default:
+		return fmt.Sprintf("%.1f KB", float64(n)/(1<<10))
 	}
 }
 

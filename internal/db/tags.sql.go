@@ -35,6 +35,17 @@ func (q *Queries) ClearPostTags(ctx context.Context, postID int64) error {
 	return err
 }
 
+const countTags = `-- name: CountTags :one
+SELECT count(*) FROM tags
+`
+
+func (q *Queries) CountTags(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTags)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createTag = `-- name: CreateTag :one
 INSERT INTO tags (name, slug, description) VALUES (?, ?, ?) RETURNING id, name, slug, description, created_at
 `
@@ -141,7 +152,13 @@ const listTags = `-- name: ListTags :many
 SELECT t.id, t.name, t.slug, t.description, t.created_at, (SELECT count(*) FROM post_tags pt WHERE pt.tag_id = t.id) AS post_count
 FROM tags t
 ORDER BY t.name
+LIMIT ? OFFSET ?
 `
+
+type ListTagsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
 
 type ListTagsRow struct {
 	ID          int64     `json:"id"`
@@ -152,8 +169,8 @@ type ListTagsRow struct {
 	PostCount   int64     `json:"post_count"`
 }
 
-func (q *Queries) ListTags(ctx context.Context) ([]ListTagsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTags)
+func (q *Queries) ListTags(ctx context.Context, arg ListTagsParams) ([]ListTagsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTags, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
