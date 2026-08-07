@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/RizkyChandra/kaku/internal/admin"
+	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/config"
 	"github.com/RizkyChandra/kaku/internal/db"
 	"github.com/RizkyChandra/kaku/internal/web/static"
@@ -54,6 +56,14 @@ func run() error {
 	q := db.New(sqlDB)
 	view.AssetVersion = version
 
+	if err := auth.EnsureRoot(ctx, q, cfg); err != nil {
+		return err
+	}
+	if err := q.DeleteExpiredSessions(ctx); err != nil {
+		return fmt.Errorf("prune sessions: %w", err)
+	}
+	sessions := auth.New(q, !cfg.IsDev())
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
@@ -63,7 +73,7 @@ func run() error {
 		_, _ = w.Write([]byte(`{"status":"ok","version":"` + version + `"}`))
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", staticHandler(cfg)))
-	r.Mount("/admin", admin.New(q).Router())
+	r.Mount("/admin", admin.New(q, sessions).Router())
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin", http.StatusFound)
 	})
