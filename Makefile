@@ -2,8 +2,10 @@
 .DEFAULT_GOAL := help
 
 TAILWIND_VERSION := v4.3.3
+SQLC_VERSION := v1.31.1
 BIN := bin
 TAILWIND := $(BIN)/tailwindcss
+SQLC := $(BIN)/sqlc
 CSS_IN := internal/web/tailwind.css
 CSS_OUT := internal/web/static/tailwind.css
 
@@ -26,8 +28,14 @@ css: $(TAILWIND) ## Build the stylesheet
 watch-css: $(TAILWIND)
 	$(TAILWIND) -i $(CSS_IN) -o $(CSS_OUT) --watch
 
-sqlc: ## Regenerate database code
-	@test -f sqlc.yaml && go tool sqlc generate || echo "no sqlc.yaml yet, skipping"
+# sqlc is a pinned binary rather than a `go tool` dep: its dependency tree
+# (grpc, pgx, tidb's parser) is far bigger than Kaku's own.
+$(SQLC):
+	@mkdir -p $(BIN)
+	GOBIN=$(CURDIR)/$(BIN) go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
+
+sqlc: $(SQLC) ## Regenerate database code
+	$(SQLC) generate
 
 templ: ## Regenerate templates
 	go tool templ generate

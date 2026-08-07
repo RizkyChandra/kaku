@@ -44,8 +44,8 @@ make test
 make build
 ```
 
-Requires Go 1.26+. `templ` and `sqlc` come from `go tool`; the Tailwind standalone CLI is fetched by
-the Makefile. No Node required.
+Requires Go 1.26+. `templ` comes from `go tool`; `sqlc` and the Tailwind standalone CLI are pinned
+binaries the Makefile fetches into `bin/`. No Node required.
 
 ## Contributing
 
