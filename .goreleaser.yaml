@@ -1,0 +1,51 @@
+version: 2
+project_name: kaku
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: kaku
+    main: ./cmd/kaku
+    binary: kaku
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - .env.example
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Docker
+
+    ```sh
+    docker pull ghcr.io/rizkychandra/kaku:{{ .Tag }}
+    ```
