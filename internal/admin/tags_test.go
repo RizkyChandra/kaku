@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -23,7 +24,7 @@ func tagSetup(t *testing.T) (http.Handler, *db.Queries, *auth.Service) {
 	t.Cleanup(func() { sqlDB.Close() })
 	q := db.New(sqlDB)
 	sessions := auth.New(q, false)
-	return New(q, sessions, nil, config.Config{}).Router(), q, sessions
+	return New(q, sessions, nil, nil, config.Config{}).Router(), q, sessions
 }
 
 // tagSignIn creates a user with the given role and returns their session cookie.
@@ -60,11 +61,35 @@ func tagPost(t *testing.T, h http.Handler, c *http.Cookie, path string, form url
 	return rec
 }
 
+func tagGet(t *testing.T, h http.Handler, c *http.Cookie, path string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.AddCookie(c)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
 func tagNames(t *testing.T, q *db.Queries) []db.ListTagsRow {
 	t.Helper()
-	tags, err := q.ListTags(t.Context())
+	tags, err := q.ListTags(t.Context(), db.ListTagsParams{Limit: 1000})
 	if err != nil {
 		t.Fatalf("list tags: %v", err)
+	}
+	return tags
+}
+
+// tagMany creates n tags named tag-00, tag-01, ... in ListTags' own name order.
+func tagMany(t *testing.T, q *db.Queries, n int) []db.Tag {
+	t.Helper()
+	tags := make([]db.Tag, n)
+	for i := range n {
+		name := fmt.Sprintf("tag-%02d", i)
+		tag, err := q.CreateTag(t.Context(), db.CreateTagParams{Name: name, Slug: name})
+		if err != nil {
+			t.Fatalf("create tag: %v", err)
+		}
+		tags[i] = tag
 	}
 	return tags
 }
@@ -118,6 +143,78 @@ func TestTagCreateRejectsEmptyName(t *testing.T) {
 	}
 	if tags := tagNames(t, q); len(tags) != 0 {
 		t.Fatalf("got %d tags, want none", len(tags))
+	}
+}
+
+func TestTagListPaginates(t *testing.T) {
+	h, q, s := tagSetup(t)
+	c := tagSignIn(t, q, s, auth.RoleEditor)
+	tagMany(t, q, perPage+5)
+
+	first := tagGet(t, h, c, "/tags").Body.String()
+	if !strings.Contains(first, "tag-00") || strings.Contains(first, "tag-24") {
+		t.Fatal("page 1 is not the first page of tags")
+	}
+	if !strings.Contains(first, "?page=2") {
+		t.Fatal("page 1 has no link to page 2")
+	}
+
+	second := tagGet(t, h, c, "/tags?page=2").Body.String()
+	if !strings.Contains(second, "tag-24") || strings.Contains(second, "tag-00") {
+		t.Fatal("page 2 shows the same rows as page 1")
+	}
+}
+
+func TestTagListClampsOutOfRangePage(t *testing.T) {
+	h, q, s := tagSetup(t)
+	c := tagSignIn(t, q, s, auth.RoleEditor)
+	tagMany(t, q, perPage+5)
+
+	for _, path := range []string{"/tags?page=99", "/tags?page=0", "/tags?page=-1", "/tags?page=nope"} {
+		rec := tagGet(t, h, c, path)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d, want 200", path, rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), "tag-") {
+			t.Fatalf("GET %s rendered no rows", path)
+		}
+	}
+}
+
+// A tag past the first page used to 404 on every row route: tagLookup only ever
+// scanned page one.
+func TestTagEditWorksBeyondFirstPage(t *testing.T) {
+	h, q, s := tagSetup(t)
+	c := tagSignIn(t, q, s, auth.RoleEditor)
+	last := tagMany(t, q, perPage+5)[perPage+4]
+	id := strconv.FormatInt(last.ID, 10)
+
+	for _, path := range []string{"/tags/" + id, "/tags/" + id + "/edit"} {
+		rec := tagGet(t, h, c, path+"?posts=3")
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), last.Name) {
+			t.Fatalf("GET %s = %d, want 200 with the tag; body=%q", path, rec.Code, rec.Body.String())
+		}
+	}
+
+	rec := tagPost(t, h, c, "/tags/"+id+"?posts=3", url.Values{"name": {"Renamed"}})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update = %d, want 200", rec.Code)
+	}
+	// The post count is display-only and rides along the fragment routes.
+	if !strings.Contains(rec.Body.String(), ">3<") {
+		t.Fatalf("row lost its post count; body=%q", rec.Body.String())
+	}
+	if got, _ := q.GetTag(t.Context(), last.ID); got.Name != "Renamed" || got.Slug != "renamed" {
+		t.Fatalf("tag = %+v, want renamed", got)
+	}
+}
+
+func TestTagLookupUnknownIDIs404(t *testing.T) {
+	h, q, s := tagSetup(t)
+	c := tagSignIn(t, q, s, auth.RoleEditor)
+
+	if got := tagGet(t, h, c, "/tags/999").Code; got != http.StatusNotFound {
+		t.Fatalf("GET /tags/999 = %d, want 404", got)
 	}
 }
 

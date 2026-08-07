@@ -75,5 +75,5 @@ func (h *Handler) renderAPIKeys(w http.ResponseWriter, r *http.Request, status i
 		http.Error(w, "could not load keys", http.StatusInternalServerError)
 		return
 	}
-	renderStatus(w, r, status, view.APIKeys(h.page(r, "Content API keys", "settings"), keys, created, errMsg))
+	renderStatus(w, r, status, view.APIKeys(h.page(r, "Content API keys", "keys"), keys, created, errMsg))
 }

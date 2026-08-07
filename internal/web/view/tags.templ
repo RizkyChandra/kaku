@@ -10,9 +10,16 @@ func tagPath(id int64, suffix string) string {
 	return "/admin/tags/" + strconv.FormatInt(id, 10) + suffix
 }
 
+// tagRowPath carries the post count along with the row fragment routes: no
+// single-tag query has it, and it is display-only, so the row hands it back
+// instead of earning a query per edit. See tagLookup.
+func tagRowPath(t db.ListTagsRow, suffix string) string {
+	return tagPath(t.ID, suffix) + "?posts=" + strconv.FormatInt(t.PostCount, 10)
+}
+
 // Tags is the whole tag screen: a create form above the table. Editing happens
-// in place, one row at a time, so there is no second page.
-templ Tags(p Page, tags []db.ListTagsRow, errMsg string) {
+// in place, one row at a time.
+templ Tags(p Page, tags []db.ListTagsRow, page, pages int, errMsg string) {
 	@Shell(p) {
 		@PageHeader("Tags")
 		<form method="post" action="/admin/tags" class="mb-8 rounded-lg border border-ink-200 bg-white p-6">
@@ -55,6 +62,7 @@ templ Tags(p Page, tags []db.ListTagsRow, errMsg string) {
 				</tbody>
 			</table>
 		</div>
+		@listPager("/admin/tags", page, pages)
 	}
 }
 
@@ -67,7 +75,7 @@ templ TagRow(t db.ListTagsRow) {
 		<td class="px-4 py-3 text-right">
 			<button
 				type="button"
-				hx-get={ tagPath(t.ID, "/edit") }
+				hx-get={ tagRowPath(t, "/edit") }
 				hx-target="closest tr"
 				hx-swap="outerHTML"
 				class="text-ink-600 underline underline-offset-2 hover:text-vermilion"
@@ -90,7 +98,7 @@ templ TagEditRow(t db.ListTagsRow, errMsg string) {
 			if errMsg != "" {
 				<p class="mb-3 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ errMsg }</p>
 			}
-			<form hx-post={ tagPath(t.ID, "") } hx-target="closest tr" hx-swap="outerHTML" class="flex flex-wrap items-end gap-3">
+			<form hx-post={ tagRowPath(t, "") } hx-target="closest tr" hx-swap="outerHTML" class="flex flex-wrap items-end gap-3">
 				<div>
 					<label class="block text-xs font-medium" for={ "name-" + strconv.FormatInt(t.ID, 10) }>Name</label>
 					<input
@@ -122,7 +130,7 @@ templ TagEditRow(t db.ListTagsRow, errMsg string) {
 				<button type="submit" class="rounded-md bg-vermilion px-3 py-1.5 text-sm font-medium text-white hover:bg-vermilion-dark">Save tag</button>
 				<button
 					type="button"
-					hx-get={ tagPath(t.ID, "") }
+					hx-get={ tagRowPath(t, "") }
 					hx-target="closest tr"
 					hx-swap="outerHTML"
 					class="px-1 py-1.5 text-sm text-ink-600 underline underline-offset-2 hover:text-vermilion"

@@ -45,7 +45,7 @@ func settingHarness(t *testing.T, role string) (http.Handler, *db.Queries, *http
 	if len(cookies) == 0 {
 		t.Fatal("login set no cookie")
 	}
-	return New(q, a, nil, config.Config{Env: "development", DBPath: ":memory:"}).Router(), q, cookies[0]
+	return New(q, a, nil, nil, config.Config{Env: "development", DBPath: ":memory:"}).Router(), q, cookies[0]
 }
 
 // settingForm is a valid submission; overrides replace single fields.

@@ -18,6 +18,7 @@ import (
 	"github.com/RizkyChandra/kaku/internal/admin"
 	"github.com/RizkyChandra/kaku/internal/api"
 	"github.com/RizkyChandra/kaku/internal/auth"
+	"github.com/RizkyChandra/kaku/internal/backup"
 	"github.com/RizkyChandra/kaku/internal/config"
 	"github.com/RizkyChandra/kaku/internal/content"
 	"github.com/RizkyChandra/kaku/internal/db"
@@ -65,6 +66,9 @@ func run() error {
 	if err := q.DeleteExpiredSessions(ctx); err != nil {
 		return fmt.Errorf("prune sessions: %w", err)
 	}
+	// Expired sessions are already rejected at lookup, so this is hygiene: a
+	// long-lived process would otherwise accumulate dead rows forever.
+	go prune(ctx, q)
 	sessions := auth.New(q, !cfg.IsDev())
 
 	// Media is optional: Kaku runs fine with no object storage, uploads just fail.
@@ -86,6 +90,18 @@ func run() error {
 	}}
 	go scheduler.Run(ctx)
 
+	// Backups need object storage; without a bucket this is a no-op rather than
+	// a startup failure, matching how media degrades.
+	backups, err := backup.New(ctx, cfg)
+	if err != nil && !errors.Is(err, backup.ErrNoBucket) {
+		return err
+	}
+	if backups != nil {
+		go backups.Run(ctx)
+	} else {
+		slog.Warn("no object storage configured; database backups are disabled")
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
@@ -95,7 +111,7 @@ func run() error {
 		_, _ = w.Write([]byte(`{"status":"ok","version":"` + version + `"}`))
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", staticHandler(cfg)))
-	r.Mount("/admin", admin.New(q, sessions, store, cfg).Router())
+	r.Mount("/admin", admin.New(q, sessions, store, backups, cfg).Router())
 	r.Mount("/api/v1", api.New(q).Router())
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin", http.StatusFound)
@@ -120,6 +136,23 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
+}
+
+// prune clears expired session rows on a slow ticker. Lookups already reject
+// them, so this only keeps the table from growing without bound.
+func prune(ctx context.Context, q *db.Queries) {
+	t := time.NewTicker(6 * time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if err := q.DeleteExpiredSessions(ctx); err != nil {
+				slog.ErrorContext(ctx, "prune sessions", "err", err)
+			}
+		}
+	}
 }
 
 func staticHandler(cfg config.Config) http.Handler {

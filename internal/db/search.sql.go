@@ -9,19 +9,34 @@ import (
 	"context"
 )
 
+const countSearchPosts = `-- name: CountSearchPosts :one
+SELECT count(*) FROM posts_fts(?)
+`
+
+func (q *Queries) CountSearchPosts(ctx context.Context, postsFts interface{}) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSearchPosts, postsFts)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const searchPosts = `-- name: SearchPosts :many
 
-SELECT p.id, p.title, p.status, p.excerpt, u.name AS author_name
+SELECT
+    p.id, p.title, p.status, p.excerpt,
+    u.name AS author_name,
+    snippet(posts_fts, 1, '[[hl]]', '[[/hl]]', '...', 24) AS snippet
 FROM posts_fts(?)
 JOIN posts p ON p.id = posts_fts.rowid
 JOIN users u ON u.id = p.author_id
 ORDER BY rank
-LIMIT ?
+LIMIT ? OFFSET ?
 `
 
 type SearchPostsParams struct {
 	PostsFts interface{} `json:"posts_fts"`
 	Limit    int64       `json:"limit"`
+	Offset   int64       `json:"offset"`
 }
 
 type SearchPostsRow struct {
@@ -30,6 +45,7 @@ type SearchPostsRow struct {
 	Status     string `json:"status"`
 	Excerpt    string `json:"excerpt"`
 	AuthorName string `json:"author_name"`
+	Snippet    string `json:"snippet"`
 }
 
 // Keep comments in this directory ASCII-only; see revisions.sql for why.
@@ -39,8 +55,13 @@ type SearchPostsRow struct {
 // "WHERE posts_fts MATCH ?" because sqlc's SQLite parser resolves the bare
 // table name on the left of MATCH as a column and rejects it. The two are the
 // same query to FTS5.
+//
+// snippet() returns the matching text with the match wrapped in the delimiters
+// given here. Those delimiters are deliberately not HTML: the surrounding text
+// is post content and must be escaped before display, so the caller swaps the
+// markers for markup after escaping.
 func (q *Queries) SearchPosts(ctx context.Context, arg SearchPostsParams) ([]SearchPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, searchPosts, arg.PostsFts, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, searchPosts, arg.PostsFts, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +75,7 @@ func (q *Queries) SearchPosts(ctx context.Context, arg SearchPostsParams) ([]Sea
 			&i.Status,
 			&i.Excerpt,
 			&i.AuthorName,
+			&i.Snippet,
 		); err != nil {
 			return nil, err
 		}

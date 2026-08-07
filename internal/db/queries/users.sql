@@ -18,7 +18,7 @@ SET password_hash = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 WHERE id = ?;
 
 -- name: ListUsers :many
-SELECT * FROM users ORDER BY name;
+SELECT * FROM users ORDER BY name LIMIT ? OFFSET ?;
 
 -- name: UpdateUser :one
 UPDATE users SET

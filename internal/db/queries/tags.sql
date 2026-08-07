@@ -16,7 +16,11 @@ SELECT * FROM tags WHERE slug = ?;
 -- name: ListTags :many
 SELECT t.*, (SELECT count(*) FROM post_tags pt WHERE pt.tag_id = t.id) AS post_count
 FROM tags t
-ORDER BY t.name;
+ORDER BY t.name
+LIMIT ? OFFSET ?;
+
+-- name: CountTags :one
+SELECT count(*) FROM tags;
 
 -- name: TagSlugExists :one
 SELECT EXISTS (SELECT 1 FROM tags WHERE slug = ?);

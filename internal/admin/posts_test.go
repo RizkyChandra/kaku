@@ -27,7 +27,7 @@ func newTest(t *testing.T) (*Handler, *db.Queries, http.Handler) {
 	}
 	t.Cleanup(func() { sqlDB.Close() })
 	q := db.New(sqlDB)
-	h := New(q, auth.New(q, false), nil, config.Config{})
+	h := New(q, auth.New(q, false), nil, nil, config.Config{})
 	// main mounts the admin router under /admin; the routes' own links assume it.
 	root := chi.NewRouter()
 	root.Mount("/admin", h.Router())

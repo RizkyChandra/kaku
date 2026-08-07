@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -21,9 +22,24 @@ func (h *Handler) mountSearch(r chi.Router) {
 // for them. Anything a signed-in user could reach from the post list they can
 // find here: the list shows every post to every role, so this does too.
 func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
-	res := view.SearchResults{Query: strings.TrimSpace(r.URL.Query().Get("q"))}
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	res := view.SearchResults{Query: strings.TrimSpace(r.URL.Query().Get("q")), Page: page}
 	if expr := escapeFTS(res.Query); expr != "" {
-		hits, err := h.q.SearchPosts(r.Context(), db.SearchPostsParams{PostsFts: expr, Limit: searchLimit})
+		ctx := r.Context()
+		total, err := h.q.CountSearchPosts(ctx, expr)
+		if err != nil {
+			h.fail(w, r, fmt.Errorf("count search posts: %w", err))
+			return
+		}
+		res.Pages = int((total + searchLimit - 1) / searchLimit)
+		hits, err := h.q.SearchPosts(ctx, db.SearchPostsParams{
+			PostsFts: expr,
+			Limit:    searchLimit,
+			Offset:   int64((page - 1) * searchLimit),
+		})
 		if err != nil {
 			h.fail(w, r, fmt.Errorf("search posts: %w", err))
 			return
@@ -31,7 +47,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 		for _, p := range hits {
 			res.Rows = append(res.Rows, view.SearchRow{
 				ID: p.ID, Title: p.Title, Status: p.Status,
-				Author: p.AuthorName, Excerpt: p.Excerpt,
+				Author: p.AuthorName, Excerpt: p.Excerpt, Snippet: p.Snippet,
 			})
 		}
 	}

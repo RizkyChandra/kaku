@@ -364,59 +364,79 @@ func settings(e EditorData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</div><div><label class=\"block text-sm font-medium\" for=\"published_at\">Publish date (UTC)</label> <input id=\"published_at\" name=\"published_at\" type=\"datetime-local\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</div><div><label class=\"block text-sm font-medium\" for=\"visibility\">Visibility</label> <select id=\"visibility\" name=\"visibility\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><option value=\"public\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if e.Post.Visibility != "private" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, " selected")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, ">Public</option> <option value=\"private\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if e.Post.Visibility == "private" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, " selected")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, ">Private</option></select><p class=\"mt-1 text-xs text-ink-400\">Private posts stay out of the Content API.</p></div><div><label class=\"block text-sm font-medium\" for=\"published_at\">Publish date (UTC)</label> <input id=\"published_at\" name=\"published_at\" type=\"datetime-local\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(e.Schedule)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 139, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 151, Col: 22}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\" class=\"mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><p class=\"mt-1 text-xs text-ink-400\">Used when the status is Scheduled.</p></div><div><label class=\"block text-sm font-medium\" for=\"tags\">Tags</label> <input id=\"tags\" name=\"tags\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" class=\"mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><p class=\"mt-1 text-xs text-ink-400\">Used when the status is Scheduled.</p></div><div><label class=\"block text-sm font-medium\" for=\"tags\">Tags</label> <input id=\"tags\" name=\"tags\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(e.Tags)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 149, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 161, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\" placeholder=\"essays, tokyo\" class=\"mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><p class=\"mt-1 text-xs text-ink-400\">Comma separated. New ones are created.</p></div><div><label class=\"block text-sm font-medium\" for=\"feature_image\">Feature image URL</label> <input id=\"feature_image\" name=\"feature_image\" type=\"url\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" placeholder=\"essays, tokyo\" class=\"mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><p class=\"mt-1 text-xs text-ink-400\">Comma separated. New ones are created.</p></div><div><label class=\"block text-sm font-medium\" for=\"feature_image\">Feature image URL</label> <input id=\"feature_image\" name=\"feature_image\" type=\"url\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(e.Post.FeatureImage)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 161, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 173, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\" class=\"mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"></div><div><label class=\"block text-sm font-medium\" for=\"excerpt\">Excerpt</label> <textarea id=\"excerpt\" name=\"excerpt\" rows=\"3\" placeholder=\"taken from the opening lines\" class=\"mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\" class=\"mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"></div><div><label class=\"block text-sm font-medium\" for=\"excerpt\">Excerpt</label> <textarea id=\"excerpt\" name=\"excerpt\" rows=\"3\" placeholder=\"taken from the opening lines\" class=\"mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(e.Post.Excerpt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 173, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 185, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</textarea></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</textarea></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -446,69 +466,69 @@ func history(e EditorData) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(e.Revisions) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<section class=\"rounded-lg border border-ink-200 bg-white p-4\"><h2 class=\"mb-2 text-sm font-medium\">History</h2><ul class=\"space-y-1.5 text-sm\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<section class=\"rounded-lg border border-ink-200 bg-white p-4\"><h2 class=\"mb-2 text-sm font-medium\">History</h2><ul class=\"space-y-1.5 text-sm\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, rev := range e.Revisions {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<li class=\"flex items-baseline justify-between gap-2\"><span class=\"min-w-0 truncate text-ink-600\"><time datetime=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<li class=\"flex items-baseline justify-between gap-2\"><span class=\"min-w-0 truncate text-ink-600\"><time datetime=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(rev.CreatedAt.Format(time.RFC3339))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 186, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 198, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(rev.CreatedAt.Format("2 Jan, 15:04"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 187, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 199, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</time> <span class=\"text-ink-400\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</time> <span class=\"text-ink-400\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(rev.AuthorName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 189, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 201, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</span></span> <button type=\"submit\" formaction=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</span></span> <button type=\"submit\" formaction=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/admin/posts/%d/restore/%d", e.Post.ID, rev.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 193, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/editor.templ`, Line: 205, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" formnovalidate class=\"shrink-0 text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion\">Restore</button></li>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "\" formnovalidate class=\"shrink-0 text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion\">Restore</button></li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</ul><p class=\"mt-2 text-xs text-ink-400\">Restoring keeps the current text as a revision.</p></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</ul><p class=\"mt-2 text-xs text-ink-400\">Restoring keeps the current text as a revision.</p></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

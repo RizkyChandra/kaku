@@ -1,6 +1,12 @@
 package view
 
-import "fmt"
+import (
+	"fmt"
+	"html"
+	"net/url"
+	"strconv"
+	"strings"
+)
 
 // SearchRow is one hit. sqlc generates its own row type, so the handler
 // flattens into this, as the post list does.
@@ -10,11 +16,35 @@ type SearchRow struct {
 	Status  string
 	Author  string
 	Excerpt string
+	Snippet string // matching body text, matches wrapped in [[hl]] markers
 }
 
 type SearchResults struct {
 	Query string
+	Page  int
+	Pages int
 	Rows  []SearchRow
+}
+
+// Href links to this search at page n, keeping the query.
+func (res SearchResults) Href(n int) string {
+	v := url.Values{"q": {res.Query}}
+	if n > 1 {
+		v.Set("page", strconv.Itoa(n))
+	}
+	return "/admin/search?" + v.Encode()
+}
+
+// highlighted is the snippet as markup. The order is load-bearing: the snippet
+// is post body text, which anyone who can write a post controls, so it is
+// escaped first and only then are the markers swapped for tags. EscapeString
+// leaves the markers alone — that is why they hold no escapable character —
+// so they still match. Doing it the other way round would escape the <mark>
+// tags, and skipping the escape would run the post's own HTML.
+func (row SearchRow) highlighted() string {
+	s := html.EscapeString(row.Snippet)
+	s = strings.ReplaceAll(s, "[[hl]]", `<mark class="rounded bg-vermilion/10 px-1 font-medium text-vermilion-dark">`)
+	return strings.ReplaceAll(s, "[[/hl]]", "</mark>")
 }
 
 templ Search(p Page, res SearchResults) {
@@ -66,11 +96,32 @@ templ SearchHits(res SearchResults) {
 						@statusBadge(row.Status)
 					</div>
 					<p class="mt-0.5 text-xs text-ink-400">{ row.Author }</p>
-					if row.Excerpt != "" {
+					if row.Snippet != "" {
+						<p class="mt-1 text-sm text-ink-600">@templ.Raw(row.highlighted())</p>
+					} else if row.Excerpt != "" {
 						<p class="mt-1 text-sm text-ink-600">{ row.Excerpt }</p>
 					}
 				</li>
 			}
 		</ul>
+		@searchPager(res)
+	}
+}
+
+templ searchPager(res SearchResults) {
+	if res.Pages > 1 {
+		<nav class="mt-4 flex items-center justify-between text-sm" aria-label="Pagination">
+			if res.Page > 1 {
+				<a href={ templ.SafeURL(res.Href(res.Page - 1)) } class="text-ink-600 hover:text-vermilion">← Newer</a>
+			} else {
+				<span></span>
+			}
+			<span class="text-ink-400">Page { strconv.Itoa(res.Page) } of { strconv.Itoa(res.Pages) }</span>
+			if res.Page < res.Pages {
+				<a href={ templ.SafeURL(res.Href(res.Page + 1)) } class="text-ink-600 hover:text-vermilion">Older →</a>
+			} else {
+				<span></span>
+			}
+		</nav>
 	}
 }

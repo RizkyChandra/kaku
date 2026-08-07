@@ -1,17 +1,89 @@
 package view
 
-templ Dashboard(p Page) {
+import "fmt"
+
+// Stat is one number on the dashboard. Href makes it a link when the count is
+// worth acting on.
+type Stat struct {
+	Label string
+	Count int64
+	Href  string
+}
+
+type DashboardData struct {
+	Stats  []Stat
+	Recent []PostRow
+	// Needs is the drafts-and-scheduled line, the thing an author actually
+	// came to check.
+	Drafts    int64
+	Scheduled int64
+}
+
+templ Dashboard(p Page, d DashboardData) {
 	@Shell(p) {
 		@PageHeader("Dashboard") {
 			<a href="/admin/posts/new" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">New post</a>
 		}
-		<div class="rounded-lg border border-ink-200 bg-white p-8">
-			<p class="font-serif text-xl">書く — to write.</p>
-			<p class="mt-2 max-w-prose text-ink-600">
-				Kaku stores your writing as markdown and serves it over a read-only
-				Content API. Start with a post, or point a reader at
-				<code class="rounded bg-ink-100 px-1 py-0.5 text-sm">/api/v1/posts</code>.
+		<dl class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+			for _, s := range d.Stats {
+				@statTile(s)
+			}
+		</dl>
+		if d.Drafts > 0 || d.Scheduled > 0 {
+			<p class="mb-8 rounded-lg border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600">
+				{ needsAttention(d.Drafts, d.Scheduled) }
+				<a href="/admin/posts?status=draft" class="ml-1 text-vermilion underline underline-offset-2">Review</a>
 			</p>
-		</div>
+		}
+		<section class="rounded-lg border border-ink-200 bg-white">
+			<h2 class="border-b border-ink-200 px-5 py-3 font-serif text-lg">Recent posts</h2>
+			if len(d.Recent) == 0 {
+				<p class="px-5 py-6 text-ink-600">
+					Nothing written yet. <a href="/admin/posts/new" class="text-vermilion underline underline-offset-2">Start a post</a>.
+				</p>
+			} else {
+				<ul>
+					for _, row := range d.Recent {
+						<li class="border-b border-ink-100 last:border-0">
+							<a href={ templ.SafeURL(fmt.Sprintf("/admin/posts/%d", row.ID)) } class="flex items-baseline justify-between gap-4 px-5 py-3 hover:bg-ink-50">
+								<span class="min-w-0 truncate">{ row.Title }</span>
+								<span class="shrink-0 text-xs text-ink-400">{ row.Status } &middot; { row.Author }</span>
+							</a>
+						</li>
+					}
+				</ul>
+			}
+		</section>
 	}
+}
+
+templ statTile(s Stat) {
+	<div class="rounded-lg border border-ink-200 bg-white px-4 py-3">
+		<dt class="text-xs text-ink-400">{ s.Label }</dt>
+		<dd class="mt-0.5 font-serif text-2xl">
+			if s.Href != "" {
+				<a href={ templ.SafeURL(s.Href) } class="hover:text-vermilion">{ fmt.Sprint(s.Count) }</a>
+			} else {
+				{ fmt.Sprint(s.Count) }
+			}
+		</dd>
+	</div>
+}
+
+func needsAttention(drafts, scheduled int64) string {
+	switch {
+	case drafts > 0 && scheduled > 0:
+		return fmt.Sprintf("%s and %s waiting.", plural(drafts, "draft"), plural(scheduled, "scheduled post"))
+	case drafts > 0:
+		return fmt.Sprintf("%s waiting.", plural(drafts, "draft"))
+	default:
+		return fmt.Sprintf("%s waiting.", plural(scheduled, "scheduled post"))
+	}
+}
+
+func plural(n int64, word string) string {
+	if n == 1 {
+		return fmt.Sprintf("1 %s", word)
+	}
+	return fmt.Sprintf("%d %ss", n, word)
 }
