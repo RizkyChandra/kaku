@@ -1,0 +1,95 @@
+package view
+
+// SettingField describes one row of the settings form. Validate is used by the
+// admin handler on save and returns "" when the value is acceptable; the form
+// never calls it.
+type SettingField struct {
+	Key, Label, Type, Help, Default string
+	Options                         []string // non-empty renders a <select>
+	Validate                        func(string) string
+}
+
+// EnvRow is one line of the read-only Environment panel. Never carries a secret.
+type EnvRow struct{ Label, Value string }
+
+type SettingsData struct {
+	Page   Page
+	Fields []SettingField
+	Values map[string]string
+	Errors map[string]string
+	Env    []EnvRow
+	Saved  bool
+}
+
+templ Settings(d SettingsData) {
+	@Shell(d.Page) {
+		@PageHeader("Settings") {
+		}
+		if d.Saved {
+			<p class="mb-6 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-600" role="status">Settings saved.</p>
+		}
+		<form method="post" action="/admin/settings" class="rounded-lg border border-ink-200 bg-white p-6">
+			for _, f := range d.Fields {
+				@settingRow(f, d.Values[f.Key], d.Errors[f.Key])
+			}
+			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
+				Save settings
+			</button>
+		</form>
+		@settingsEnv(d.Env)
+	}
+}
+
+templ settingRow(f SettingField, value, errMsg string) {
+	<div class="mb-5">
+		<label class="block text-sm font-medium" for={ f.Key }>{ f.Label }</label>
+		if len(f.Options) > 0 {
+			<select
+				id={ f.Key }
+				name={ f.Key }
+				aria-describedby={ settingDescribedBy(f.Key, errMsg) }
+				class="mt-1 w-full max-w-md rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"
+			>
+				for _, o := range f.Options {
+					<option value={ o } selected?={ o == value }>{ o }</option>
+				}
+			</select>
+		} else {
+			<input
+				id={ f.Key }
+				name={ f.Key }
+				type={ f.Type }
+				value={ value }
+				aria-describedby={ settingDescribedBy(f.Key, errMsg) }
+				class="mt-1 w-full max-w-md rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"
+			/>
+		}
+		<p id={ f.Key + "-help" } class="mt-1 text-xs text-ink-400">{ f.Help }</p>
+		if errMsg != "" {
+			<p id={ f.Key + "-error" } class="mt-1 text-sm text-vermilion-dark" role="alert">{ errMsg }</p>
+		}
+	</div>
+}
+
+templ settingsEnv(rows []EnvRow) {
+	<section class="mt-8 rounded-lg border border-ink-200 bg-white p-6" aria-labelledby="env-heading">
+		<h2 id="env-heading" class="font-serif text-xl">Environment</h2>
+		<p class="mt-1 max-w-prose text-sm text-ink-600">
+			Read-only. These come from the KAKU_* environment variables this process started with.
+		</p>
+		<dl class="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[12rem_1fr]">
+			for _, row := range rows {
+				<dt class="text-ink-400">{ row.Label }</dt>
+				<dd class="break-all font-mono text-ink-800">{ row.Value }</dd>
+			}
+		</dl>
+	</section>
+}
+
+// Every field carries help text, so the help id always exists to point at.
+func settingDescribedBy(key, errMsg string) string {
+	if errMsg != "" {
+		return key + "-help " + key + "-error"
+	}
+	return key + "-help"
+}
