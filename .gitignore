@@ -1,0 +1,10 @@
+/bin/
+/dist/
+/data/
+*.db
+*.db-shm
+*.db-wal
+.env
+
+# generated but committed: *_templ.go, internal/web/static/tailwind.css
+# (so `go build` works from a clean checkout; CI verifies they are up to date)
