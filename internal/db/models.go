@@ -61,6 +61,11 @@ type PostTag struct {
 	Position int64 `json:"position"`
 }
 
+type PostsFt struct {
+	Title    string `json:"title"`
+	Markdown string `json:"markdown"`
+}
+
 type Session struct {
 	ID        string    `json:"id"`
 	UserID    int64     `json:"user_id"`
