@@ -24,6 +24,9 @@ const (
 	authScheme   = "Kaku "
 	defaultLimit = 10
 	maxLimit     = 100
+	// The tag list is not paginated in the API; a site with more tags than this
+	// wants a paginated endpoint, not a bigger number.
+	maxTags = 500
 )
 
 type Handler struct{ q *db.Queries }
@@ -131,7 +134,7 @@ func newMeta(page, limit, total int64) meta {
 }
 
 func (h *Handler) listPosts(w http.ResponseWriter, r *http.Request) {
-	page, limit := paging(r)
+	page, limit := h.paging(r)
 	tag := r.URL.Query().Get("tag")
 	if tag == "" {
 		h.listByType(w, r, "post", "posts", page, limit)
@@ -159,7 +162,7 @@ func (h *Handler) listPosts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listPages(w http.ResponseWriter, r *http.Request) {
-	page, limit := paging(r)
+	page, limit := h.paging(r)
 	h.listByType(w, r, "page", "pages", page, limit)
 }
 
@@ -202,7 +205,7 @@ func (h *Handler) bySlug(w http.ResponseWriter, r *http.Request, typ string) {
 }
 
 func (h *Handler) listTags(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.q.ListTags(r.Context())
+	rows, err := h.q.ListTags(r.Context(), db.ListTagsParams{Limit: maxTags, Offset: 0})
 	if err != nil {
 		fail(w, r, "list tags", err)
 		return
@@ -252,9 +255,12 @@ func (h *Handler) post(ctx context.Context, row db.ListPublishedPostsRow) (postJ
 }
 
 // paging reads page and limit, falling back to the defaults on anything unusable.
-func paging(r *http.Request) (page, limit int64) {
+// paging honours ?limit= when given, otherwise the posts_per_page setting.
+// A client asking for more than maxLimit is capped rather than refused.
+func (h *Handler) paging(r *http.Request) (page, limit int64) {
 	q := r.URL.Query()
-	return posInt(q.Get("page"), 1), min(posInt(q.Get("limit"), defaultLimit), maxLimit)
+	def := db.LoadSettings(r.Context(), h.q).Int("posts_per_page", defaultLimit, 1, maxLimit)
+	return posInt(q.Get("page"), 1), min(posInt(q.Get("limit"), def), maxLimit)
 }
 
 func posInt(s string, def int64) int64 {

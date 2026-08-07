@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
@@ -18,6 +20,10 @@ import (
 
 const mediaPerPage = 24
 
+// A description long enough to be useful and short enough to still be alt
+// text; past this it is prose that belongs in the post.
+const mediaAltMax = 300
+
 // Anyone signed in may upload; deleting breaks other people's posts, so it
 // stops at editor.
 var mediaDeleteRoles = []string{auth.RoleEditor, auth.RoleAdmin, auth.RoleOwner}
@@ -26,6 +32,9 @@ func (h *Handler) mountMedia(r chi.Router) {
 	r.Route("/media", func(r chi.Router) {
 		r.Get("/", h.mediaIndex)
 		r.Post("/", h.mediaUpload)
+		// No RequireRole: captioning destroys nothing, and an image nobody is
+		// allowed to describe stays inaccessible. Same reach as upload.
+		r.Post("/{id}/alt", h.mediaAlt)
 		r.With(auth.RequireRole(mediaDeleteRoles...)).Post("/{id}/delete", h.mediaDelete)
 	})
 }
@@ -97,6 +106,7 @@ func (h *Handler) mediaUpload(w http.ResponseWriter, r *http.Request) {
 		Mime:       obj.MIME,
 		Size:       obj.Size,
 		UploadedBy: u.ID,
+		Alt:        "", // captioned afterwards, from the tile
 	})
 	if err != nil {
 		// Without a row nothing would ever reference, list or clean up the
@@ -105,6 +115,37 @@ func (h *Handler) mediaUpload(w http.ResponseWriter, r *http.Request) {
 			slog.ErrorContext(r.Context(), "orphaned upload", "key", obj.Key, "err", delErr)
 		}
 		mediaFail(w, r, "create media", err)
+		return
+	}
+	render(w, r, view.MediaTile(m, mediaCanDelete(r)))
+}
+
+// mediaAlt sets the description of one image and swaps its tile back. It never
+// touches object storage, so it works even with no bucket configured.
+func (h *Handler) mediaAlt(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	alt := strings.TrimSpace(r.FormValue("alt"))
+	// Rejected, not truncated: silently cutting someone's sentence in half is
+	// worse than telling them it is too long.
+	if utf8.RuneCountInString(alt) > mediaAltMax {
+		http.Error(w, "That description is too long. Keep it under 300 characters.", http.StatusBadRequest)
+		return
+	}
+	if err := h.q.UpdateMediaAlt(r.Context(), db.UpdateMediaAltParams{Alt: alt, ID: id}); err != nil {
+		mediaFail(w, r, "update media alt", err)
+		return
+	}
+	m, err := h.q.GetMedia(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		mediaFail(w, r, "get media", err)
 		return
 	}
 	render(w, r, view.MediaTile(m, mediaCanDelete(r)))

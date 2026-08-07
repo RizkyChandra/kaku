@@ -49,12 +49,27 @@ func (h *Handler) usersList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, status int, errMsg string) {
-	users, err := h.q.ListUsers(r.Context())
+	total, err := h.q.CountUsers(r.Context())
+	if err != nil {
+		userFail(w, r, "count users", err)
+		return
+	}
+	page, pages := pageBounds(r, total)
+	users, err := h.q.ListUsers(r.Context(), db.ListUsersParams{Limit: perPage, Offset: int64((page - 1) * perPage)})
 	if err != nil {
 		userFail(w, r, "list users", err)
 		return
 	}
-	renderStatus(w, r, status, view.Users(h.page(r, "Staff", "users"), users, errMsg))
+	renderStatus(w, r, status, view.Users(h.page(r, "Staff", "users"), users, page, pages, errMsg))
+}
+
+// pageBounds reads ?page= and clamps it to the pages total rows actually fill,
+// so a hand-typed or now-stale number lands on the last page instead of an
+// empty one. Shared with the tag list; posts.go predates it.
+func pageBounds(r *http.Request, total int64) (page, pages int) {
+	pages = max(int((total+perPage-1)/perPage), 1)
+	page, _ = strconv.Atoi(r.URL.Query().Get("page"))
+	return min(max(page, 1), pages), pages
 }
 
 func (h *Handler) userNew(w http.ResponseWriter, r *http.Request) {

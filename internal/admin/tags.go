@@ -2,6 +2,8 @@ package admin
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -118,35 +120,48 @@ func (h *Handler) tagDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) tagPage(w http.ResponseWriter, r *http.Request, status int, errMsg string) {
-	tags, err := h.q.ListTags(r.Context())
+	total, err := h.q.CountTags(r.Context())
+	if err != nil {
+		tagFail(w, r, fmt.Errorf("count tags: %w", err))
+		return
+	}
+	page, pages := pageBounds(r, total)
+	tags, err := h.q.ListTags(r.Context(), db.ListTagsParams{Limit: perPage, Offset: int64((page - 1) * perPage)})
 	if err != nil {
 		tagFail(w, r, fmt.Errorf("list tags: %w", err))
 		return
 	}
-	renderStatus(w, r, status, view.Tags(h.page(r, "Tags", "tags"), tags, errMsg))
+	renderStatus(w, r, status, view.Tags(h.page(r, "Tags", "tags"), tags, page, pages, errMsg))
 }
 
 // tagLookup resolves the {id} route param, answering 404 itself when it cannot.
+//
+// GetTag is the narrowest query that does it. Scanning ListTags used to work
+// only because it returned every tag; now that it is a page at a time, a tag on
+// page two would read as missing. GetTag has every column the row fragments
+// need except post_count, which no single-tag query carries and which nothing
+// here changes — so the row hands its count back in ?posts= rather than paying
+// for a count on every edit, cancel and save.
 func (h *Handler) tagLookup(w http.ResponseWriter, r *http.Request) (db.ListTagsRow, bool) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		http.NotFound(w, r)
 		return db.ListTagsRow{}, false
 	}
-	// ListTags is the only query carrying the post count, and the table is a
-	// screenful.
-	tags, err := h.q.ListTags(r.Context())
+	t, err := h.q.GetTag(r.Context(), id)
 	if err != nil {
-		tagFail(w, r, fmt.Errorf("list tags: %w", err))
+		if errors.Is(err, sql.ErrNoRows) {
+			http.NotFound(w, r)
+		} else {
+			tagFail(w, r, fmt.Errorf("get tag %d: %w", id, err))
+		}
 		return db.ListTagsRow{}, false
 	}
-	for _, t := range tags {
-		if t.ID == id {
-			return t, true
-		}
-	}
-	http.NotFound(w, r)
-	return db.ListTagsRow{}, false
+	posts, _ := strconv.ParseInt(r.FormValue("posts"), 10, 64)
+	return db.ListTagsRow{
+		ID: t.ID, Name: t.Name, Slug: t.Slug, Description: t.Description,
+		CreatedAt: t.CreatedAt, PostCount: posts,
+	}, true
 }
 
 // tagUniqueSlug slugifies the submitted slug, or the name when it is blank, and

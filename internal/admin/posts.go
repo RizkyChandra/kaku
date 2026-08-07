@@ -107,8 +107,9 @@ func (h *Handler) listPosts(typ string) http.HandlerFunc {
 func (h *Handler) newPost(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
 	typ := postType(r.URL.Query().Get("type"))
+	vis := postVisibility(db.LoadSettings(r.Context(), h.q).Get("default_visibility"))
 	render(w, r, view.Editor(h.page(r, "New "+typ, navKey(typ)), view.EditorData{
-		Post:       db.Post{Type: typ, Status: "draft"},
+		Post:       db.Post{Type: typ, Status: "draft", Visibility: vis},
 		CanPublish: canPublish(u),
 	}))
 }
@@ -155,7 +156,7 @@ func (h *Handler) createPost(w http.ResponseWriter, r *http.Request) {
 		Excerpt:      f.excerpt(),
 		FeatureImage: f.FeatureImage,
 		Status:       f.Status,
-		Visibility:   "public",
+		Visibility:   f.Visibility,
 		AuthorID:     u.ID,
 		PublishedAt:  f.publishedAt(nil),
 	})
@@ -203,7 +204,7 @@ func (h *Handler) updatePost(w http.ResponseWriter, r *http.Request) {
 		Excerpt:      f.excerpt(),
 		FeatureImage: f.FeatureImage,
 		Status:       f.Status,
-		Visibility:   p.Visibility,
+		Visibility:   f.Visibility,
 		PublishedAt:  f.publishedAt(p.PublishedAt),
 		ID:           p.ID,
 	}); err != nil {
@@ -394,6 +395,7 @@ func (h *Handler) editorData(ctx context.Context, p db.Post, u db.User) (view.Ed
 func (h *Handler) editorError(w http.ResponseWriter, r *http.Request, p db.Post, f postForm, u db.User, msg string) {
 	p.Title, p.Slug, p.Markdown = f.Title, f.Slug, f.Markdown
 	p.Excerpt, p.FeatureImage, p.Status = f.Excerpt, f.FeatureImage, f.Status
+	p.Visibility = f.Visibility
 	p.Html = content.Render(f.Markdown)
 	title := p.Title
 	if title == "" {
@@ -415,6 +417,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 
 type postForm struct {
 	Title, Slug, Markdown, Excerpt, FeatureImage, Tags, Status, Schedule string
+	Visibility                                                           string
 }
 
 func readPostForm(r *http.Request) postForm {
@@ -427,6 +430,7 @@ func readPostForm(r *http.Request) postForm {
 		Tags:         r.FormValue("tags"),
 		Status:       postStatus(r.FormValue("status")),
 		Schedule:     r.FormValue("published_at"),
+		Visibility:   postVisibility(r.FormValue("visibility")),
 	}
 }
 
@@ -513,6 +517,15 @@ func postStatus(s string) string {
 		return s
 	}
 	return "draft"
+}
+
+// postVisibility keeps the column's CHECK constraint out of the error path: an
+// unknown value from a hand-crafted form falls back to the safer of the two.
+func postVisibility(v string) string {
+	if v == "private" {
+		return "private"
+	}
+	return "public"
 }
 
 // listStatus is the ?status= filter: "" means every status.

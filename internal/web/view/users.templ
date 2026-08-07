@@ -25,7 +25,34 @@ func userManageable(actor *db.User, target db.User) bool {
 	return actor != nil && (actor.Role == auth.RoleOwner || target.Role != auth.RoleOwner)
 }
 
-templ Users(p Page, users []db.User, errMsg string) {
+func pageHref(base string, n int) string {
+	if n <= 1 {
+		return base
+	}
+	return base + "?page=" + strconv.Itoa(n)
+}
+
+// listPager is the pager for the staff and tag lists. posts.templ keeps its own
+// copy because its links must also carry the ?status= filter.
+templ listPager(base string, page, pages int) {
+	if pages > 1 {
+		<nav class="mt-4 flex items-center justify-between text-sm" aria-label="Pagination">
+			if page > 1 {
+				<a href={ templ.SafeURL(pageHref(base, page-1)) } class="text-ink-600 hover:text-vermilion">← Newer</a>
+			} else {
+				<span></span>
+			}
+			<span class="text-ink-400">Page { strconv.Itoa(page) } of { strconv.Itoa(pages) }</span>
+			if page < pages {
+				<a href={ templ.SafeURL(pageHref(base, page+1)) } class="text-ink-600 hover:text-vermilion">Older →</a>
+			} else {
+				<span></span>
+			}
+		</nav>
+	}
+}
+
+templ Users(p Page, users []db.User, page, pages int, errMsg string) {
 	@Shell(p) {
 		@PageHeader("Staff") {
 			<a href="/admin/users/new" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
@@ -77,6 +104,7 @@ templ Users(p Page, users []db.User, errMsg string) {
 				</tbody>
 			</table>
 		</div>
+		@listPager("/admin/users", page, pages)
 	}
 }
 

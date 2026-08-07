@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +26,7 @@ func userHandler(t *testing.T) (*Handler, *db.Queries) {
 	}
 	t.Cleanup(func() { sqlDB.Close() })
 	q := db.New(sqlDB)
-	return New(q, auth.New(q, false), nil, config.Config{}), q
+	return New(q, auth.New(q, false), nil, nil, config.Config{}), q
 }
 
 // userMake inserts an account with userPassword as its password.
@@ -73,6 +74,49 @@ func userDo(t *testing.T, h *Handler, method, path string, form url.Values, c *h
 	w := httptest.NewRecorder()
 	h.Router().ServeHTTP(w, req)
 	return w
+}
+
+func TestUsersPaginates(t *testing.T) {
+	h, q := userHandler(t)
+	userMake(t, q, "owner@example.com", auth.RoleOwner)
+	for i := range perPage + 5 {
+		userMake(t, q, fmt.Sprintf("u%02d@example.com", i), auth.RoleAuthor)
+	}
+	c := userLogin(t, h, "owner@example.com")
+
+	// ListUsers orders by name, which userMake sets to the email: owner sorts
+	// first, so u00 is on page one and u24 is not.
+	first := userDo(t, h, "GET", "/users", nil, c).Body.String()
+	if !strings.Contains(first, "u00@example.com") || strings.Contains(first, "u24@example.com") {
+		t.Fatal("page 1 is not the first page of staff")
+	}
+	if !strings.Contains(first, "?page=2") {
+		t.Fatal("page 1 has no link to page 2")
+	}
+
+	second := userDo(t, h, "GET", "/users?page=2", nil, c).Body.String()
+	if !strings.Contains(second, "u24@example.com") || strings.Contains(second, "u00@example.com") {
+		t.Fatal("page 2 shows the same rows as page 1")
+	}
+}
+
+func TestUsersClampsOutOfRangePage(t *testing.T) {
+	h, q := userHandler(t)
+	userMake(t, q, "owner@example.com", auth.RoleOwner)
+	for i := range perPage + 5 {
+		userMake(t, q, fmt.Sprintf("u%02d@example.com", i), auth.RoleAuthor)
+	}
+	c := userLogin(t, h, "owner@example.com")
+
+	for _, path := range []string{"/users?page=99", "/users?page=0", "/users?page=-1", "/users?page=nope"} {
+		w := userDo(t, h, "GET", path, nil, c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d, want 200", path, w.Code)
+		}
+		if !strings.Contains(w.Body.String(), "@example.com") {
+			t.Fatalf("GET %s rendered no rows", path)
+		}
+	}
 }
 
 func TestUsersForbiddenToEditor(t *testing.T) {

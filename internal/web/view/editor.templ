@@ -131,6 +131,18 @@ templ settings(e EditorData) {
 			}
 		</div>
 		<div>
+			<label class="block text-sm font-medium" for="visibility">Visibility</label>
+			<select
+				id="visibility"
+				name="visibility"
+				class="mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+			>
+				<option value="public" selected?={ e.Post.Visibility != "private" }>Public</option>
+				<option value="private" selected?={ e.Post.Visibility == "private" }>Private</option>
+			</select>
+			<p class="mt-1 text-xs text-ink-400">Private posts stay out of the Content API.</p>
+		</div>
+		<div>
 			<label class="block text-sm font-medium" for="published_at">Publish date (UTC)</label>
 			<input
 				id="published_at"
