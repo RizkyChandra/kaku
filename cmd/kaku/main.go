@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/RizkyChandra/kaku/internal/config"
+	"github.com/RizkyChandra/kaku/internal/db"
 	"github.com/RizkyChandra/kaku/internal/web/static"
 )
 
@@ -39,6 +40,17 @@ func run() error {
 		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	sqlDB, err := db.Open(ctx, cfg.DBPath)
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+	slog.Info("database ready", "path", cfg.DBPath)
+	_ = db.New(sqlDB) // queries; wired up as features land
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
@@ -54,9 +66,6 @@ func run() error {
 		Handler:           r,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		slog.Info("kaku listening", "addr", cfg.Addr, "version", version, "env", cfg.Env)
