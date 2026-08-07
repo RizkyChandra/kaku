@@ -1,0 +1,76 @@
+package view
+
+import "fmt"
+
+// SearchRow is one hit. sqlc generates its own row type, so the handler
+// flattens into this, as the post list does.
+type SearchRow struct {
+	ID      int64
+	Title   string
+	Status  string
+	Author  string
+	Excerpt string
+}
+
+type SearchResults struct {
+	Query string
+	Rows  []SearchRow
+}
+
+templ Search(p Page, res SearchResults) {
+	@Shell(p) {
+		@PageHeader("Search") {
+		}
+		<form role="search" method="get" action="/admin/search" class="mb-6">
+			<label class="block text-sm font-medium" for="q">Search posts</label>
+			<div class="mt-1 flex gap-2">
+				<input
+					id="q"
+					name="q"
+					type="search"
+					value={ res.Query }
+					autocomplete="off"
+					placeholder="Title or body text"
+					hx-get="/admin/search"
+					hx-trigger="input changed delay:300ms, search"
+					hx-target="#results"
+					class="w-full max-w-md rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"
+				/>
+				<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
+					Search
+				</button>
+			</div>
+		</form>
+		<div id="results" aria-live="polite">
+			@SearchHits(res)
+		</div>
+	}
+}
+
+// SearchHits is the fragment the type-ahead swaps in, and the same markup the
+// full page ships with JavaScript off.
+templ SearchHits(res SearchResults) {
+	if res.Query == "" {
+		<p class="text-ink-600">Type a word to search posts and pages.</p>
+	} else if len(res.Rows) == 0 {
+		<p class="text-ink-600">Nothing matches { res.Query }.</p>
+	} else {
+		<ul class="divide-y divide-ink-100 overflow-hidden rounded-lg border border-ink-200 bg-white">
+			for _, row := range res.Rows {
+				<li class="p-4">
+					<div class="flex items-baseline justify-between gap-3">
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("/admin/posts/%d", row.ID)) }
+							class="font-medium hover:text-vermilion"
+						>{ row.Title }</a>
+						@statusBadge(row.Status)
+					</div>
+					<p class="mt-0.5 text-xs text-ink-400">{ row.Author }</p>
+					if row.Excerpt != "" {
+						<p class="mt-1 text-sm text-ink-600">{ row.Excerpt }</p>
+					}
+				</li>
+			}
+		</ul>
+	}
+}

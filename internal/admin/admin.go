@@ -44,6 +44,7 @@ func (h *Handler) Router() chi.Router {
 
 		// Each feature registers its own routes from its own file.
 		h.mountPosts(r)
+		h.mountSearch(r)
 		h.mountTags(r)
 		h.mountMedia(r)
 		h.mountUsers(r)
