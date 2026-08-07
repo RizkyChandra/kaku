@@ -1,0 +1,176 @@
+package view
+
+import (
+	"strconv"
+
+	"github.com/RizkyChandra/kaku/internal/auth"
+	"github.com/RizkyChandra/kaku/internal/db"
+)
+
+// UserFormData carries a staff form's values back when validation fails, so
+// nothing has to be retyped. Target.ID is 0 on the create form.
+type UserFormData struct {
+	Target db.User
+	Roles  []string // the roles the signed-in user is allowed to assign
+	Err    string
+}
+
+func userPath(id int64, suffix string) string {
+	return "/admin/users/" + strconv.FormatInt(id, 10) + suffix
+}
+
+// userManageable mirrors the server-side rule: only an owner may act on another
+// owner, and nobody deletes themselves.
+func userManageable(actor *db.User, target db.User) bool {
+	return actor != nil && (actor.Role == auth.RoleOwner || target.Role != auth.RoleOwner)
+}
+
+templ Users(p Page, users []db.User, errMsg string) {
+	@Shell(p) {
+		@PageHeader("Staff") {
+			<a href="/admin/users/new" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
+				New staff member
+			</a>
+		}
+		@userAlert(errMsg)
+		<div class="overflow-hidden rounded-lg border border-ink-200 bg-white">
+			<table class="w-full text-left text-sm">
+				<thead class="border-b border-ink-200 text-ink-600">
+					<tr>
+						<th scope="col" class="px-4 py-3 font-medium">Name</th>
+						<th scope="col" class="px-4 py-3 font-medium">Email</th>
+						<th scope="col" class="px-4 py-3 font-medium">Role</th>
+						<th scope="col" class="px-4 py-3"><span class="sr-only">Actions</span></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, u := range users {
+						<tr class="border-b border-ink-100 last:border-0">
+							<td class="px-4 py-3 font-medium">{ u.Name }</td>
+							<td class="px-4 py-3 text-ink-600">{ u.Email }</td>
+							<td class="px-4 py-3 text-ink-600">{ u.Role }</td>
+							<td class="px-4 py-3 text-right whitespace-nowrap">
+								if userManageable(p.User, u) {
+									<a href={ templ.SafeURL(userPath(u.ID, "")) } aria-label={ "Edit " + u.Name } class="text-vermilion underline underline-offset-2 hover:text-vermilion-dark">
+										Edit
+									</a>
+									if p.User.ID != u.ID {
+										<form
+											method="post"
+											action={ userPath(u.ID, "/delete") }
+											class="ml-4 inline"
+											hx-post={ userPath(u.ID, "/delete") }
+											hx-select="body"
+											hx-target="body"
+											hx-swap="outerHTML"
+											hx-confirm={ "Delete " + u.Name + "? This cannot be undone." }
+										>
+											<button type="submit" aria-label={ "Delete " + u.Name } class="text-ink-400 underline underline-offset-2 hover:text-vermilion">
+												Delete
+											</button>
+										</form>
+									}
+								}
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+templ UserForm(p Page, f UserFormData) {
+	@Shell(p) {
+		@PageHeader(p.Title) {
+			<a href="/admin/users" class="text-sm text-ink-600 underline underline-offset-2 hover:text-vermilion">Back to staff</a>
+		}
+		@userAlert(f.Err)
+		<form
+			method="post"
+			if f.Target.ID == 0 {
+				action="/admin/users"
+			} else {
+				action={ userPath(f.Target.ID, "") }
+			}
+			class="max-w-xl rounded-lg border border-ink-200 bg-white p-6"
+		>
+			<label class="block text-sm font-medium" for="name">Name</label>
+			<input id="name" name="name" type="text" value={ f.Target.Name } required autocomplete="name" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+			<label class="block text-sm font-medium" for="email">Email</label>
+			<input id="email" name="email" type="email" value={ f.Target.Email } required autocomplete="email" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+			<label class="block text-sm font-medium" for="role">Role</label>
+			<select id="role" name="role" class="mt-1 mb-4 w-full rounded-md border border-ink-200 bg-white px-3 py-2 focus:border-vermilion focus:outline-none">
+				for _, role := range f.Roles {
+					<option value={ role } selected?={ role == f.Target.Role }>{ role }</option>
+				}
+			</select>
+			if f.Target.ID == 0 {
+				<label class="block text-sm font-medium" for="password">Password</label>
+				<input id="password" name="password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 mb-1 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+				<p class="mb-4 text-xs text-ink-400">At least 8 characters. Share it with them and let them change it from their profile.</p>
+			} else {
+				<label class="block text-sm font-medium" for="bio">Bio</label>
+				<textarea id="bio" name="bio" rows="3" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none">{ f.Target.Bio }</textarea>
+				<label class="block text-sm font-medium" for="image_url">Profile image URL</label>
+				<input id="image_url" name="image_url" type="url" value={ f.Target.ImageUrl } class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+			}
+			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
+				if f.Target.ID == 0 {
+					Create account
+				} else {
+					Save changes
+				}
+			</button>
+		</form>
+		if f.Target.ID != 0 && (p.User == nil || p.User.ID != f.Target.ID) {
+			<form method="post" action={ userPath(f.Target.ID, "/password") } class="mt-6 max-w-xl rounded-lg border border-ink-200 bg-white p-6">
+				<h2 class="font-serif text-xl">Set a new password</h2>
+				<p class="mt-1 mb-4 text-sm text-ink-600">This signs { f.Target.Name } out of every device.</p>
+				<label class="block text-sm font-medium" for="new-password">New password</label>
+				<input id="new-password" name="password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+				<button type="submit" class="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium hover:border-vermilion hover:text-vermilion">
+					Set password
+				</button>
+			</form>
+		}
+	}
+}
+
+templ Profile(p Page, u db.User, errMsg, okMsg string) {
+	@Shell(p) {
+		@PageHeader("Your profile")
+		@userAlert(errMsg)
+		if okMsg != "" {
+			<p class="mb-6 rounded-md bg-ink-100 px-3 py-2 text-sm text-ink-800" role="status">{ okMsg }</p>
+		}
+		<form method="post" action="/admin/profile" class="max-w-xl rounded-lg border border-ink-200 bg-white p-6">
+			<p class="mb-4 text-sm text-ink-600">
+				Signed in as { u.Email } &middot; { u.Role }. Ask an owner or admin to change either.
+			</p>
+			<label class="block text-sm font-medium" for="name">Name</label>
+			<input id="name" name="name" type="text" value={ u.Name } required autocomplete="name" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+			<label class="block text-sm font-medium" for="bio">Bio</label>
+			<textarea id="bio" name="bio" rows="3" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none">{ u.Bio }</textarea>
+			<label class="block text-sm font-medium" for="image_url">Profile image URL</label>
+			<input id="image_url" name="image_url" type="url" value={ u.ImageUrl } class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">Save profile</button>
+		</form>
+		<form method="post" action="/admin/profile/password" class="mt-6 max-w-xl rounded-lg border border-ink-200 bg-white p-6">
+			<h2 class="font-serif text-xl">Change your password</h2>
+			<label class="mt-4 block text-sm font-medium" for="current-password">Current password</label>
+			<input id="current-password" name="current_password" type="password" required autocomplete="current-password" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+			<label class="block text-sm font-medium" for="new-password">New password</label>
+			<input id="new-password" name="password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+			<button type="submit" class="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium hover:border-vermilion hover:text-vermilion">
+				Change password
+			</button>
+		</form>
+	}
+}
+
+templ userAlert(msg string) {
+	if msg != "" {
+		<p class="mb-6 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ msg }</p>
+	}
+}
