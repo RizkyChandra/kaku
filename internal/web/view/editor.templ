@@ -1,0 +1,203 @@
+package view
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/RizkyChandra/kaku/internal/db"
+)
+
+// EditorData is one post's form state. For a new post, Post is the zero value
+// with Type and Status filled in.
+type EditorData struct {
+	Post       db.Post
+	Tags       string // comma-separated tag names
+	Revisions  []db.ListRevisionsRow
+	CanPublish bool
+	Schedule   string // datetime-local value, UTC wall clock
+	Err        string
+}
+
+func (e EditorData) IsNew() bool { return e.Post.ID == 0 }
+
+func (e EditorData) Action() string {
+	if e.IsNew() {
+		return "/admin/posts"
+	}
+	return fmt.Sprintf("/admin/posts/%d", e.Post.ID)
+}
+
+func (e EditorData) Back() string {
+	if e.Post.Type == "page" {
+		return "/admin/pages"
+	}
+	return "/admin/posts"
+}
+
+// Editor is one form: the settings column and the revision buttons post the
+// same fields, using formaction to pick a different route.
+templ Editor(p Page, e EditorData) {
+	@Shell(p) {
+		<form method="post" action={ templ.SafeURL(e.Action()) }>
+			@PageHeader(p.Title) {
+				<a href={ templ.SafeURL(e.Back()) } class="text-sm text-ink-600 hover:text-vermilion">Cancel</a>
+				<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
+					Save { e.Post.Type }
+				</button>
+			}
+			<input type="hidden" name="type" value={ e.Post.Type }/>
+			if e.Err != "" {
+				<p class="mb-4 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ e.Err }</p>
+			}
+			<label class="block text-sm font-medium" for="title">Title</label>
+			<input
+				id="title"
+				name="title"
+				value={ e.Post.Title }
+				required
+				autofocus?={ e.IsNew() }
+				class="mt-1 mb-6 w-full rounded-md border border-ink-200 bg-white px-3 py-2 font-serif text-2xl focus:border-vermilion focus:outline-none"
+			/>
+			<div class="grid gap-6 lg:grid-cols-3">
+				<div class="grid gap-4 md:grid-cols-2 lg:col-span-2">
+					<div class="flex min-w-0 flex-col">
+						<label class="mb-1 text-sm font-medium" for="markdown">Markdown</label>
+						<textarea
+							id="markdown"
+							name="markdown"
+							spellcheck="true"
+							class="h-[60vh] w-full resize-y rounded-md border border-ink-200 bg-white p-3 font-mono text-sm leading-relaxed focus:border-vermilion focus:outline-none"
+							hx-post="/admin/preview"
+							hx-trigger="keyup changed delay:400ms from:closest form"
+							hx-target="#preview"
+						>{ e.Post.Markdown }</textarea>
+					</div>
+					<div class="flex min-w-0 flex-col">
+						<h2 class="mb-1 text-sm font-medium">Preview</h2>
+						<div
+							id="preview"
+							aria-live="polite"
+							class="h-[60vh] overflow-y-auto rounded-md border border-ink-200 bg-white p-3 text-ink-800 [&_a]:text-vermilion [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-ink-200 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-ink-100 [&_code]:px-1 [&_h1]:font-serif [&_h1]:text-2xl [&_h2]:font-serif [&_h2]:text-xl [&_h3]:font-serif [&_h3]:text-lg [&_img]:max-w-full [&_li]:ml-5 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-ink-100 [&_pre]:p-3"
+						>
+							@templ.Raw(e.Post.Html)
+						</div>
+					</div>
+				</div>
+				<aside class="space-y-4">
+					@settings(e)
+					@history(e)
+					if !e.IsNew() {
+						<button
+							type="submit"
+							formaction={ fmt.Sprintf("/admin/posts/%d/delete", e.Post.ID) }
+							formnovalidate
+							onclick="return confirm('Delete this permanently?')"
+							class="text-sm text-ink-400 underline underline-offset-2 hover:text-vermilion"
+						>Delete { e.Post.Type }</button>
+					}
+				</aside>
+			</div>
+		</form>
+	}
+}
+
+templ settings(e EditorData) {
+	<div class="space-y-4 rounded-lg border border-ink-200 bg-white p-4">
+		<div>
+			<label class="block text-sm font-medium" for="slug">Slug</label>
+			<input
+				id="slug"
+				name="slug"
+				value={ e.Post.Slug }
+				placeholder="derived from the title"
+				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+			/>
+		</div>
+		<div>
+			<label class="block text-sm font-medium" for="status">Status</label>
+			<select
+				id="status"
+				name="status"
+				class="mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+			>
+				<option value="draft" selected?={ e.Post.Status == "draft" }>Draft</option>
+				if e.CanPublish {
+					<option value="scheduled" selected?={ e.Post.Status == "scheduled" }>Scheduled</option>
+					<option value="published" selected?={ e.Post.Status == "published" }>Published</option>
+				}
+			</select>
+			if !e.CanPublish {
+				<p class="mt-1 text-xs text-ink-400">Contributors save drafts; an editor publishes them.</p>
+			}
+		</div>
+		<div>
+			<label class="block text-sm font-medium" for="published_at">Publish date (UTC)</label>
+			<input
+				id="published_at"
+				name="published_at"
+				type="datetime-local"
+				value={ e.Schedule }
+				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+			/>
+			<p class="mt-1 text-xs text-ink-400">Used when the status is Scheduled.</p>
+		</div>
+		<div>
+			<label class="block text-sm font-medium" for="tags">Tags</label>
+			<input
+				id="tags"
+				name="tags"
+				value={ e.Tags }
+				placeholder="essays, tokyo"
+				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+			/>
+			<p class="mt-1 text-xs text-ink-400">Comma separated. New ones are created.</p>
+		</div>
+		<div>
+			<label class="block text-sm font-medium" for="feature_image">Feature image URL</label>
+			<input
+				id="feature_image"
+				name="feature_image"
+				type="url"
+				value={ e.Post.FeatureImage }
+				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+			/>
+		</div>
+		<div>
+			<label class="block text-sm font-medium" for="excerpt">Excerpt</label>
+			<textarea
+				id="excerpt"
+				name="excerpt"
+				rows="3"
+				placeholder="taken from the opening lines"
+				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+			>{ e.Post.Excerpt }</textarea>
+		</div>
+	</div>
+}
+
+templ history(e EditorData) {
+	if len(e.Revisions) > 0 {
+		<section class="rounded-lg border border-ink-200 bg-white p-4">
+			<h2 class="mb-2 text-sm font-medium">History</h2>
+			<ul class="space-y-1.5 text-sm">
+				for _, rev := range e.Revisions {
+					<li class="flex items-baseline justify-between gap-2">
+						<span class="min-w-0 truncate text-ink-600">
+							<time datetime={ rev.CreatedAt.Format(time.RFC3339) }>
+								{ rev.CreatedAt.Format("2 Jan, 15:04") }
+							</time>
+							<span class="text-ink-400">{ rev.AuthorName }</span>
+						</span>
+						<button
+							type="submit"
+							formaction={ fmt.Sprintf("/admin/posts/%d/restore/%d", e.Post.ID, rev.ID) }
+							formnovalidate
+							class="shrink-0 text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion"
+						>Restore</button>
+					</li>
+				}
+			</ul>
+			<p class="mt-2 text-xs text-ink-400">Restoring keeps the current text as a revision.</p>
+		</section>
+	}
+}
