@@ -49,6 +49,21 @@ func (q *Queries) CountPublishedPosts(ctx context.Context, type_ string) (int64,
 	return count, err
 }
 
+const countPublishedPostsByTag = `-- name: CountPublishedPostsByTag :one
+SELECT count(*)
+FROM posts p
+JOIN post_tags pt ON pt.post_id = p.id
+JOIN tags t ON t.id = pt.tag_id
+WHERE t.slug = ? AND p.status = 'published' AND p.visibility = 'public'
+`
+
+func (q *Queries) CountPublishedPostsByTag(ctx context.Context, slug string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPublishedPostsByTag, slug)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPost = `-- name: CreatePost :one
 
 INSERT INTO posts (
@@ -576,11 +591,17 @@ func (q *Queries) PublishDuePosts(ctx context.Context) (int64, error) {
 
 const updatePost = `-- name: UpdatePost :one
 UPDATE posts SET
-    title = ?, slug = ?, markdown = ?, html = ?, excerpt = ?, feature_image = ?,
-    status = ?, visibility = ?,
-    published_at = strftime('%Y-%m-%dT%H:%M:%fZ', ?10),
+    title = ?1,
+    slug = ?2,
+    markdown = ?3,
+    html = ?4,
+    excerpt = ?5,
+    feature_image = ?6,
+    status = ?7,
+    visibility = ?8,
+    published_at = strftime('%Y-%m-%dT%H:%M:%fZ', ?9),
     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-WHERE id = ?
+WHERE id = ?10
 RETURNING id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at
 `
 
@@ -597,6 +618,9 @@ type UpdatePostParams struct {
 	ID           int64       `json:"id"`
 }
 
+// Every parameter is named: mixing sqlc.arg() with positional ? makes SQLite
+// number the trailing ? after the highest explicit index, and sqlc then binds
+// one argument too few.
 func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, error) {
 	row := q.db.QueryRowContext(ctx, updatePost,
 		arg.Title,

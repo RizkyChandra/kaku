@@ -32,7 +32,7 @@ func (q *Queries) CreateRevision(ctx context.Context, arg CreateRevisionParams) 
 }
 
 const deleteRevisionsBelowID = `-- name: DeleteRevisionsBelowID :exec
-DELETE FROM post_revisions WHERE post_id = ? AND id <
+DELETE FROM post_revisions WHERE post_id = ? AND id < ?
 `
 
 type DeleteRevisionsBelowIDParams struct {
@@ -40,9 +40,13 @@ type DeleteRevisionsBelowIDParams struct {
 	ID     int64 `json:"id"`
 }
 
-// Prunes a post's history. Ids are monotonic, so "older than the oldest one we
-// are keeping" is just an id comparison — sqlc's SQLite parser rejects the
+// Prunes a post's history. Ids are monotonic, so "older than the oldest one
+// we are keeping" is just an id comparison; sqlc's SQLite parser rejects the
 // self-referencing subquery a single-statement trim would need.
+//
+// Keep comments in this directory ASCII-only. sqlc slices the query text by
+// byte offset, so a multi-byte character in a preceding comment silently
+// truncates the generated SQL by that many bytes.
 func (q *Queries) DeleteRevisionsBelowID(ctx context.Context, arg DeleteRevisionsBelowIDParams) error {
 	_, err := q.db.ExecContext(ctx, deleteRevisionsBelowID, arg.PostID, arg.ID)
 	return err
