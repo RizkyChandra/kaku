@@ -1,0 +1,100 @@
+package view
+
+import "github.com/RizkyChandra/kaku/internal/db"
+
+// Page carries what every admin screen needs from the chrome around it.
+type Page struct {
+	Title  string
+	User   *db.User
+	Active string // nav key of the current section
+}
+
+type navItem struct {
+	Key, Href, Label string
+}
+
+var nav = []navItem{
+	{"posts", "/admin/posts", "Posts"},
+	{"pages", "/admin/pages", "Pages"},
+	{"tags", "/admin/tags", "Tags"},
+	{"media", "/admin/media", "Media"},
+	{"users", "/admin/users", "Staff"},
+	{"settings", "/admin/settings", "Settings"},
+}
+
+templ head(title string) {
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<meta name="robots" content="noindex, nofollow"/>
+	<title>{ title } &middot; Kaku</title>
+	<link rel="stylesheet" href={ asset("tailwind.css") }/>
+	<script src={ asset("htmx.min.js") } defer></script>
+}
+
+// Shell is the signed-in admin chrome: fixed sidebar, scrolling content.
+templ Shell(p Page) {
+	<!DOCTYPE html>
+	<html lang="en" class="h-full">
+		<head>
+			@head(p.Title)
+		</head>
+		<body class="h-full bg-ink-50 text-ink-900 font-sans antialiased">
+			<div class="flex h-full">
+				<aside class="hidden w-56 shrink-0 flex-col border-r border-ink-200 bg-white md:flex">
+					<a href="/admin" class="flex items-baseline gap-2 px-6 py-6">
+						<span class="font-serif text-2xl leading-none text-vermilion">書</span>
+						<span class="font-serif text-xl leading-none">Kaku</span>
+					</a>
+					<nav class="flex-1 px-3">
+						for _, item := range nav {
+							@navLink(item, p.Active)
+						}
+					</nav>
+					@sidebarFooter(p.User)
+				</aside>
+				<main class="min-w-0 flex-1 overflow-y-auto">
+					<div class="mx-auto max-w-5xl px-6 py-8 md:px-10">
+						{ children... }
+					</div>
+				</main>
+			</div>
+		</body>
+	</html>
+}
+
+templ navLink(item navItem, active string) {
+	if item.Key == active {
+		<a
+			href={ templ.SafeURL(item.Href) }
+			class="mb-0.5 flex items-center rounded-md border-l-2 border-vermilion bg-ink-100 px-3 py-2 text-sm font-medium"
+			aria-current="page"
+		>{ item.Label }</a>
+	} else {
+		<a
+			href={ templ.SafeURL(item.Href) }
+			class="mb-0.5 flex items-center rounded-md border-l-2 border-transparent px-3 py-2 text-sm text-ink-600 hover:bg-ink-50 hover:text-ink-900"
+		>{ item.Label }</a>
+	}
+}
+
+templ sidebarFooter(u *db.User) {
+	if u != nil {
+		<div class="border-t border-ink-200 px-6 py-4">
+			<p class="truncate text-sm font-medium">{ u.Name }</p>
+			<p class="truncate text-xs text-ink-400">{ u.Role }</p>
+			<form method="post" action="/admin/logout" class="mt-2">
+				<button type="submit" class="text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion">Sign out</button>
+			</form>
+		</div>
+	}
+}
+
+// PageHeader is the title row every screen opens with.
+templ PageHeader(title string) {
+	<header class="mb-8 flex items-center justify-between gap-4">
+		<h1 class="font-serif text-3xl">{ title }</h1>
+		<div class="flex items-center gap-2">
+			{ children... }
+		</div>
+	</header>
+}

@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@source "./view";
+
+/* Kaku's palette: sumi ink for structure, vermilion (the colour of a hanko) for accent. */
+@theme {
+  --color-ink-50: #f7f6f4;
+  --color-ink-100: #eceae6;
+  --color-ink-200: #d9d5ce;
+  --color-ink-400: #8c877e;
+  --color-ink-600: #4b4740;
+  --color-ink-800: #2a2724;
+  --color-ink-900: #1b1917;
+  --color-vermilion: #c8442a;
+  --color-vermilion-dark: #a63722;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: ui-serif, "Iowan Old Style", Georgia, serif;
+}
