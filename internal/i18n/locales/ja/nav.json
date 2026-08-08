@@ -1,0 +1,12 @@
+{
+  "nav.posts": "記事",
+  "nav.pages": "固定ページ",
+  "nav.search": "検索",
+  "nav.tags": "タグ",
+  "nav.media": "メディア",
+  "nav.users": "スタッフ",
+  "nav.keys": "APIキー",
+  "nav.settings": "設定",
+  "nav.signOut": "サインアウト",
+  "nav.language": "言語"
+}

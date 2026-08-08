@@ -1,6 +1,9 @@
 package view
 
-import "github.com/RizkyChandra/kaku/internal/db"
+import (
+	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
+)
 
 // Page carries what every admin screen needs from the chrome around it.
 type Page struct {
@@ -11,6 +14,17 @@ type Page struct {
 	// name for the site appears in the admin rather than just "Kaku".
 	SiteTitle string
 	Footer    string
+	// Lang, Locales and Path drive the language picker.
+	Lang    string
+	Locales []i18n.Locale
+	Path    string
+}
+
+func (p Page) langOr(def string) string {
+	if p.Lang != "" {
+		return p.Lang
+	}
+	return def
 }
 
 func (p Page) siteName() string {
@@ -24,15 +38,16 @@ type navItem struct {
 	Key, Href, Label string
 }
 
+// Label is a message key; the text is resolved per request from the context.
 var nav = []navItem{
-	{"posts", "/admin/posts", "Posts"},
-	{"pages", "/admin/pages", "Pages"},
-	{"search", "/admin/search", "Search"},
-	{"tags", "/admin/tags", "Tags"},
-	{"media", "/admin/media", "Media"},
-	{"users", "/admin/users", "Staff"},
-	{"keys", "/admin/keys", "API keys"},
-	{"settings", "/admin/settings", "Settings"},
+	{"posts", "/admin/posts", "nav.posts"},
+	{"pages", "/admin/pages", "nav.pages"},
+	{"search", "/admin/search", "nav.search"},
+	{"tags", "/admin/tags", "nav.tags"},
+	{"media", "/admin/media", "nav.media"},
+	{"users", "/admin/users", "nav.users"},
+	{"keys", "/admin/keys", "nav.keys"},
+	{"settings", "/admin/settings", "nav.settings"},
 }
 
 templ head(title string) {
@@ -47,7 +62,7 @@ templ head(title string) {
 // Shell is the signed-in admin chrome: fixed sidebar, scrolling content.
 templ Shell(p Page) {
 	<!DOCTYPE html>
-	<html lang="en" class="h-full">
+	<html lang={ p.langOr("en") } class="h-full">
 		<head>
 			@head(p.Title)
 		</head>
@@ -63,6 +78,7 @@ templ Shell(p Page) {
 							@navLink(item, p.Active)
 						}
 					</nav>
+					@languagePicker(p)
 					@sidebarFooter(p.User)
 				</aside>
 				<main class="min-w-0 flex-1 overflow-y-auto">
@@ -84,13 +100,36 @@ templ navLink(item navItem, active string) {
 			href={ templ.SafeURL(item.Href) }
 			class="mb-0.5 flex items-center rounded-md border-l-2 border-vermilion bg-ink-100 px-3 py-2 text-sm font-medium"
 			aria-current="page"
-		>{ item.Label }</a>
+		>{ i18n.T(ctx, item.Label) }</a>
 	} else {
 		<a
 			href={ templ.SafeURL(item.Href) }
 			class="mb-0.5 flex items-center rounded-md border-l-2 border-transparent px-3 py-2 text-sm text-ink-600 hover:bg-ink-50 hover:text-ink-900"
-		>{ item.Label }</a>
+		>{ i18n.T(ctx, item.Label) }</a>
 	}
+}
+
+// languagePicker submits on change, so it needs no JavaScript of our own. It is
+// rendered even with a single locale loaded, which is the cue that dropping a
+// file into KAKU_LOCALES_DIR is how you add one.
+templ languagePicker(p Page) {
+	<form method="post" action="/admin/language" class="border-t border-ink-200 px-6 py-3">
+		<input type="hidden" name="next" value={ p.Path }/>
+		<label class="block text-xs text-ink-400" for="lang">{ i18n.T(ctx, "nav.language") }</label>
+		<select
+			id="lang"
+			name="lang"
+			onchange="this.form.submit()"
+			class="mt-1 w-full rounded-md border border-ink-200 bg-white px-2 py-1 text-sm focus:border-vermilion focus:outline-none"
+		>
+			for _, l := range p.Locales {
+				<option value={ l.Code } selected?={ l.Code == p.Lang }>{ l.Name }</option>
+			}
+		</select>
+		<noscript>
+			<button type="submit" class="mt-2 text-xs underline underline-offset-2">{ i18n.T(ctx, "nav.language") }</button>
+		</noscript>
+	</form>
 }
 
 templ sidebarFooter(u *db.User) {
@@ -99,7 +138,7 @@ templ sidebarFooter(u *db.User) {
 			<p class="truncate text-sm font-medium">{ u.Name }</p>
 			<p class="truncate text-xs text-ink-400">{ u.Role }</p>
 			<form method="post" action="/admin/logout" class="mt-2">
-				<button type="submit" class="text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion">Sign out</button>
+				<button type="submit" class="text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion">{ i18n.T(ctx, "nav.signOut") }</button>
 			</form>
 		</div>
 	}

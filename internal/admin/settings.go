@@ -18,41 +18,57 @@ import (
 
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
 
 // settingFields is the whole feature: rendering and saving both walk it, so a
 // new setting is one line here. Infrastructure stays in the environment.
-var settingFields = []view.SettingField{
-	{
-		Key: "site_title", Label: "Site title", Type: "text", Default: "Kaku",
-		Help: "Shown as the name of the publication.", Validate: settingRequired,
-	},
-	{
-		Key: "site_description", Label: "Site description", Type: "text",
-		Help: "One line, used in feeds and meta tags.",
-	},
-	{
-		Key: "site_url", Label: "Site URL", Type: "url",
-		Help:     "Absolute links in the Content API are built from this. Leave blank to fall back to KAKU_URL.",
-		Validate: settingURL,
-	},
-	{
-		Key: "timezone", Label: "Timezone", Type: "text", Default: "UTC",
-		Help: "IANA name, e.g. Asia/Tokyo. Publish times are read in this zone.", Validate: settingTimezone,
-	},
-	{
-		Key: "default_visibility", Label: "Default post visibility", Type: "text", Default: "public",
-		Options: []string{"public", "private"}, Help: "Applied to new posts.",
-	},
-	{
-		Key: "posts_per_page", Label: "Posts per page", Type: "number", Default: "10",
-		Help: "Page size for the Content API, between 1 and 100.", Validate: settingPerPage,
-	},
-	{
-		Key: "footer_text", Label: "Footer line", Type: "text",
-		Help: "Copyright or credit shown at the foot of the site.",
-	},
+// settingFieldList is a function, not a var, because the language options come
+// from whatever locales are loaded at runtime - including any dropped into
+// KAKU_LOCALES_DIR, which are not known at package init.
+func settingFieldList() []view.SettingField {
+	langs := i18n.Available()
+	codes := make([]string, 0, len(langs))
+	for _, l := range langs {
+		codes = append(codes, l.Code)
+	}
+	return []view.SettingField{
+		{
+			Key: "language", Label: "Admin language", Type: "text", Default: i18n.Fallback,
+			Options: codes,
+			Help:    "Default language for the admin interface. Staff can override it for themselves.",
+		},
+		{
+			Key: "site_title", Label: "Site title", Type: "text", Default: "Kaku",
+			Help: "Shown as the name of the publication.", Validate: settingRequired,
+		},
+		{
+			Key: "site_description", Label: "Site description", Type: "text",
+			Help: "One line, used in feeds and meta tags.",
+		},
+		{
+			Key: "site_url", Label: "Site URL", Type: "url",
+			Help:     "Absolute links in the Content API are built from this. Leave blank to fall back to KAKU_URL.",
+			Validate: settingURL,
+		},
+		{
+			Key: "timezone", Label: "Timezone", Type: "text", Default: "UTC",
+			Help: "IANA name, e.g. Asia/Tokyo. Publish times are read in this zone.", Validate: settingTimezone,
+		},
+		{
+			Key: "default_visibility", Label: "Default post visibility", Type: "text", Default: "public",
+			Options: []string{"public", "private"}, Help: "Applied to new posts.",
+		},
+		{
+			Key: "posts_per_page", Label: "Posts per page", Type: "number", Default: "10",
+			Help: "Page size for the Content API, between 1 and 100.", Validate: settingPerPage,
+		},
+		{
+			Key: "footer_text", Label: "Footer line", Type: "text",
+			Help: "Copyright or credit shown at the foot of the site.",
+		},
+	}
 }
 
 func (h *Handler) mountSettings(r chi.Router) {
@@ -82,9 +98,9 @@ func (h *Handler) saveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	values := make(map[string]string, len(settingFields))
+	values := make(map[string]string, len(settingFieldList()))
 	errs := map[string]string{}
-	for _, f := range settingFields {
+	for _, f := range settingFieldList() {
 		v := strings.TrimSpace(r.FormValue(f.Key))
 		values[f.Key] = v
 		switch {
@@ -102,7 +118,7 @@ func (h *Handler) saveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, f := range settingFields {
+	for _, f := range settingFieldList() {
 		if values[f.Key] == current[f.Key] {
 			continue
 		}
@@ -126,8 +142,8 @@ func (h *Handler) settingValues(ctx context.Context) (map[string]string, error) 
 	for _, s := range rows {
 		stored[s.Key] = s.Value
 	}
-	values := make(map[string]string, len(settingFields))
-	for _, f := range settingFields {
+	values := make(map[string]string, len(settingFieldList()))
+	for _, f := range settingFieldList() {
 		values[f.Key] = f.Default
 		if v, ok := stored[f.Key]; ok {
 			values[f.Key] = v
@@ -139,7 +155,7 @@ func (h *Handler) settingValues(ctx context.Context) (map[string]string, error) 
 func (h *Handler) settingsData(r *http.Request, values, errs map[string]string, saved bool) view.SettingsData {
 	return view.SettingsData{
 		Page:   h.page(r, "Settings", "settings"),
-		Fields: settingFields,
+		Fields: settingFieldList(),
 		Values: values,
 		Errors: errs,
 		Env: []view.EnvRow{

@@ -8,6 +8,8 @@ package view
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/RizkyChandra/kaku/internal/i18n"
+
 // Login is the only page served without a session, so it does not use Shell.
 func Login(next, errMsg string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -30,51 +32,103 @@ func Login(next, errMsg string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full\"><head>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = head("Sign in").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</head><body class=\"flex h-full items-center justify-center bg-ink-50 px-4 text-ink-900 font-sans antialiased\"><main class=\"w-full max-w-sm\"><div class=\"mb-8 flex items-baseline justify-center gap-2\"><span class=\"font-serif text-3xl leading-none text-vermilion\">書</span> <span class=\"font-serif text-2xl leading-none\">Kaku</span></div><form method=\"post\" action=\"/admin/login\" class=\"rounded-lg border border-ink-200 bg-white p-6\"><input type=\"hidden\" name=\"next\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.From(ctx).Code)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/login.templ`, Line: 17, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/login.templ`, Line: 8, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"h-full\"><head>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = head(i18n.T(ctx, "login.title")).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body class=\"flex h-full items-center justify-center bg-ink-50 px-4 text-ink-900 font-sans antialiased\"><main class=\"w-full max-w-sm\"><div class=\"mb-8 flex items-baseline justify-center gap-2\"><span class=\"font-serif text-3xl leading-none text-vermilion\">書</span> <span class=\"font-serif text-2xl leading-none\">Kaku</span></div><form method=\"post\" action=\"/admin/login\" class=\"rounded-lg border border-ink-200 bg-white p-6\"><input type=\"hidden\" name=\"next\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/login.templ`, Line: 19, Col: 50}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if errMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"mb-4 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark\" role=\"alert\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"mb-4 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark\" role=\"alert\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/login.templ`, Line: 19, Col: 108}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/login.templ`, Line: 21, Col: 108}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<label class=\"block text-sm font-medium\" for=\"email\">Email</label> <input id=\"email\" name=\"email\" type=\"email\" autocomplete=\"username\" required autofocus class=\"mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none\"> <label class=\"block text-sm font-medium\" for=\"password\">Password</label> <input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required class=\"mt-1 mb-6 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none\"> <button type=\"submit\" class=\"w-full rounded-md bg-vermilion px-3 py-2 font-medium text-white hover:bg-vermilion-dark\">Sign in</button></form></main></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<label class=\"block text-sm font-medium\" for=\"email\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "login.email"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/login.templ`, Line: 23, Col: 86}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</label> <input id=\"email\" name=\"email\" type=\"email\" autocomplete=\"username\" required autofocus class=\"mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none\"> <label class=\"block text-sm font-medium\" for=\"password\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "login.password"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/login.templ`, Line: 33, Col: 92}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</label> <input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required class=\"mt-1 mb-6 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none\"> <button type=\"submit\" class=\"w-full rounded-md bg-vermilion px-3 py-2 font-medium text-white hover:bg-vermilion-dark\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "login.submit"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/view/login.templ`, Line: 43, Col: 35}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</button></form></main></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

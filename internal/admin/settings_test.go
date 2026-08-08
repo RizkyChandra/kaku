@@ -51,6 +51,7 @@ func settingHarness(t *testing.T, role string) (http.Handler, *db.Queries, *http
 // settingForm is a valid submission; overrides replace single fields.
 func settingForm(overrides map[string]string) url.Values {
 	v := url.Values{
+		"language":           {"en"},
 		"site_title":         {"Example"},
 		"site_description":   {"A test site"},
 		"site_url":           {"https://example.com"},

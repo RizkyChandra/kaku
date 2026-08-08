@@ -34,7 +34,7 @@ func (q *Queries) CountUsersByRole(ctx context.Context, role string) (int64, err
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash, name, role)
 VALUES (?, ?, ?, ?)
-RETURNING id, email, password_hash, name, role, bio, image_url, created_at, updated_at
+RETURNING id, email, password_hash, name, role, bio, image_url, created_at, updated_at, locale
 `
 
 type CreateUserParams struct {
@@ -62,6 +62,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -103,7 +104,7 @@ func (q *Queries) EmailExistsExcept(ctx context.Context, arg EmailExistsExceptPa
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, email, password_hash, name, role, bio, image_url, created_at, updated_at FROM users WHERE id = ?
+SELECT id, email, password_hash, name, role, bio, image_url, created_at, updated_at, locale FROM users WHERE id = ?
 `
 
 func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
@@ -119,12 +120,13 @@ func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, role, bio, image_url, created_at, updated_at FROM users WHERE email = ? COLLATE NOCASE
+SELECT id, email, password_hash, name, role, bio, image_url, created_at, updated_at, locale FROM users WHERE email = ? COLLATE NOCASE
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -140,12 +142,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, password_hash, name, role, bio, image_url, created_at, updated_at FROM users ORDER BY name LIMIT ? OFFSET ?
+SELECT id, email, password_hash, name, role, bio, image_url, created_at, updated_at, locale FROM users ORDER BY name LIMIT ? OFFSET ?
 `
 
 type ListUsersParams struct {
@@ -172,6 +175,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.ImageUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Locale,
 		); err != nil {
 			return nil, err
 		}
@@ -191,7 +195,7 @@ UPDATE users SET
     email = ?, name = ?, role = ?, bio = ?, image_url = ?,
     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 WHERE id = ?
-RETURNING id, email, password_hash, name, role, bio, image_url, created_at, updated_at
+RETURNING id, email, password_hash, name, role, bio, image_url, created_at, updated_at, locale
 `
 
 type UpdateUserParams struct {
@@ -223,8 +227,25 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
+}
+
+const updateUserLocale = `-- name: UpdateUserLocale :exec
+UPDATE users
+SET locale = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE id = ?
+`
+
+type UpdateUserLocaleParams struct {
+	Locale string `json:"locale"`
+	ID     int64  `json:"id"`
+}
+
+func (q *Queries) UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserLocale, arg.Locale, arg.ID)
+	return err
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :exec

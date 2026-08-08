@@ -15,6 +15,7 @@ type Settings map[string]string
 // is what the form renders; this copy is what everything else reads.
 var SettingDefaults = Settings{
 	"site_title":         "Kaku",
+	"language":           "en",
 	"site_description":   "",
 	"site_url":           "",
 	"timezone":           "UTC",

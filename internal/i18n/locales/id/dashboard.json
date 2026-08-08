@@ -1,0 +1,19 @@
+{
+  "dashboard.title": "Dasbor",
+  "dashboard.newPost": "Tulisan baru",
+  "dashboard.posts": "Tulisan",
+  "dashboard.pages": "Halaman",
+  "dashboard.drafts": "Draf",
+  "dashboard.tags": "Tag",
+  "dashboard.media": "Media",
+  "dashboard.staff": "Staf",
+  "dashboard.recent": "Tulisan terbaru",
+  "dashboard.empty": "Belum ada tulisan.",
+  "dashboard.start": "Mulai menulis",
+  "dashboard.review": "Tinjau",
+  "dashboard.draftsWaiting.one": "%d draf menunggu.",
+  "dashboard.draftsWaiting.other": "%d draf menunggu.",
+  "dashboard.scheduledWaiting.one": "%d tulisan terjadwal menunggu.",
+  "dashboard.scheduledWaiting.other": "%d tulisan terjadwal menunggu.",
+  "dashboard.bothWaiting": "%s dan %s"
+}
