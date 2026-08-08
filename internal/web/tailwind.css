@@ -1,4 +1,8 @@
-@import "tailwindcss";
+/* source(none) turns off automatic file detection: it scanned the whole
+   repository, so an ordinary English word in a Go comment ("a relative path")
+   became a utility class and the stylesheet changed under CI. Templates are
+   the only place classes come from. */
+@import "tailwindcss" source(none);
 @source "./view";
 
 /* Kaku's palette: sumi ink for structure, vermilion (the colour of a hanko) for accent. */

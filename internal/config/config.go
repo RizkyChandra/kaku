@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -40,7 +41,7 @@ func Load() (Config, error) {
 		Addr:         env("KAKU_ADDR", ":8080"),
 		URL:          strings.TrimSuffix(env("KAKU_URL", "http://localhost:8080"), "/"),
 		Env:          env("KAKU_ENV", "production"),
-		DBPath:       env("KAKU_DB_PATH", "/data/kaku.db"),
+		DBPath:       env("KAKU_DB_PATH", filepath.Join(env("RAILWAY_VOLUME_MOUNT_PATH", "/data"), "kaku.db")),
 		RootEmail:    os.Getenv("KAKU_ROOT_EMAIL"),
 		RootPassword: os.Getenv("KAKU_ROOT_PASSWORD"),
 		LocalesDir:   os.Getenv("KAKU_LOCALES_DIR"),
@@ -59,7 +60,27 @@ func Load() (Config, error) {
 	if c.RootPassword != "" && len(c.RootPassword) < 8 {
 		return c, fmt.Errorf("KAKU_ROOT_PASSWORD must be at least 8 characters")
 	}
+	if err := checkOnVolume(c.DBPath, os.Getenv("RAILWAY_VOLUME_MOUNT_PATH")); err != nil {
+		return c, err
+	}
 	return c, nil
+}
+
+// checkOnVolume refuses a database path that lies outside an attached volume.
+// Opening the database creates missing directories, so a relative or stray
+// KAKU_DB_PATH quietly writes to the container's disk instead: the site works,
+// then loses every post on the next deploy. Failing to boot is the kinder
+// failure. mount is empty when no volume is attached, and nothing is checked.
+func checkOnVolume(dbPath, mount string) error {
+	if mount == "" {
+		return nil
+	}
+	mount = filepath.Clean(mount)
+	if p := filepath.Clean(dbPath); p != mount && !strings.HasPrefix(p, mount+string(filepath.Separator)) {
+		return fmt.Errorf("KAKU_DB_PATH %q is outside the volume mounted at %s, so the database would be erased on the next deploy: unset KAKU_DB_PATH, or set it to %s",
+			dbPath, mount, filepath.Join(mount, "kaku.db"))
+	}
+	return nil
 }
 
 func env(key, def string) string {
