@@ -1,8 +1,11 @@
 package view
 
-// SettingField describes one row of the settings form. Validate is used by the
-// admin handler on save and returns "" when the value is acceptable; the form
-// never calls it.
+import "github.com/RizkyChandra/kaku/internal/i18n"
+
+// SettingField describes one row of the settings form. Label and Help are
+// message keys, resolved per request. Validate is used by the admin handler on
+// save and returns "" when the value is acceptable, otherwise a message key for
+// the handler to resolve; the form never calls it.
 type SettingField struct {
 	Key, Label, Type, Help, Default string
 	Options                         []string // non-empty renders a <select>
@@ -10,6 +13,8 @@ type SettingField struct {
 }
 
 // EnvRow is one line of the read-only Environment panel. Never carries a secret.
+// Label is a message key; a KAKU_* variable name is left as-is and falls
+// through i18n untranslated, which is what we want for a variable name.
 type EnvRow struct{ Label, Value string }
 
 type SettingsData struct {
@@ -25,16 +30,19 @@ type SettingsData struct {
 
 // BackupPanel is swapped in place by htmx after a manual run, so the result
 // replaces the button rather than reloading the settings page.
+//
+// Its two sentences are translated in halves, either side of the literal they
+// name, so a language can put that literal where its own word order wants it.
 templ BackupPanel(enabled bool, msg, errMsg string) {
 	<section id="backup" class="mt-8 rounded-lg border border-ink-200 bg-white p-5">
-		<h2 class="font-serif text-lg">Database backup</h2>
+		<h2 class="font-serif text-lg">{ i18n.T(ctx, "settings.backup.title") }</h2>
 		if !enabled {
 			<p class="mt-1 text-sm text-ink-600">
-				No object storage configured. Set <code class="rounded bg-ink-100 px-1 py-0.5">KAKU_S3_BUCKET</code> to enable scheduled and manual backups.
+				{ i18n.T(ctx, "settings.backup.disabledBefore") } <code class="rounded bg-ink-100 px-1 py-0.5">KAKU_S3_BUCKET</code> { i18n.T(ctx, "settings.backup.disabledAfter") }
 			</p>
 		} else {
 			<p class="mt-1 text-sm text-ink-600">
-				A snapshot is uploaded to <code class="rounded bg-ink-100 px-1 py-0.5">backups/</code> every 24 hours; the seven most recent are kept.
+				{ i18n.T(ctx, "settings.backup.scheduleBefore") } <code class="rounded bg-ink-100 px-1 py-0.5">backups/</code> { i18n.T(ctx, "settings.backup.scheduleAfter") }
 			</p>
 			if errMsg != "" {
 				<p class="mt-3 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ errMsg }</p>
@@ -48,24 +56,24 @@ templ BackupPanel(enabled bool, msg, errMsg string) {
 				hx-target="#backup"
 				hx-swap="outerHTML"
 				class="mt-3 rounded-md border border-ink-200 px-3 py-2 text-sm font-medium hover:border-vermilion hover:text-vermilion"
-			>Back up now</button>
+			>{ i18n.T(ctx, "settings.backup.run") }</button>
 		}
 	</section>
 }
 
 templ Settings(d SettingsData) {
 	@Shell(d.Page) {
-		@PageHeader("Settings") {
+		@PageHeader(i18n.T(ctx, "settings.title")) {
 		}
 		if d.Saved {
-			<p class="mb-6 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-600" role="status">Settings saved.</p>
+			<p class="mb-6 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-600" role="status">{ i18n.T(ctx, "settings.saved") }</p>
 		}
 		<form method="post" action="/admin/settings" class="rounded-lg border border-ink-200 bg-white p-6">
 			for _, f := range d.Fields {
 				@settingRow(f, d.Values[f.Key], d.Errors[f.Key])
 			}
 			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
-				Save settings
+				{ i18n.T(ctx, "settings.save") }
 			</button>
 		</form>
 		@settingsEnv(d.Env)
@@ -75,7 +83,7 @@ templ Settings(d SettingsData) {
 
 templ settingRow(f SettingField, value, errMsg string) {
 	<div class="mb-5">
-		<label class="block text-sm font-medium" for={ f.Key }>{ f.Label }</label>
+		<label class="block text-sm font-medium" for={ f.Key }>{ i18n.T(ctx, f.Label) }</label>
 		if len(f.Options) > 0 {
 			<select
 				id={ f.Key }
@@ -97,7 +105,7 @@ templ settingRow(f SettingField, value, errMsg string) {
 				class="mt-1 w-full max-w-md rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"
 			/>
 		}
-		<p id={ f.Key + "-help" } class="mt-1 text-xs text-ink-400">{ f.Help }</p>
+		<p id={ f.Key + "-help" } class="mt-1 text-xs text-ink-400">{ i18n.T(ctx, f.Help) }</p>
 		if errMsg != "" {
 			<p id={ f.Key + "-error" } class="mt-1 text-sm text-vermilion-dark" role="alert">{ errMsg }</p>
 		}
@@ -106,13 +114,13 @@ templ settingRow(f SettingField, value, errMsg string) {
 
 templ settingsEnv(rows []EnvRow) {
 	<section class="mt-8 rounded-lg border border-ink-200 bg-white p-6" aria-labelledby="env-heading">
-		<h2 id="env-heading" class="font-serif text-xl">Environment</h2>
+		<h2 id="env-heading" class="font-serif text-xl">{ i18n.T(ctx, "settings.env.title") }</h2>
 		<p class="mt-1 max-w-prose text-sm text-ink-600">
-			Read-only. These come from the KAKU_* environment variables this process started with.
+			{ i18n.T(ctx, "settings.env.note") }
 		</p>
 		<dl class="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[12rem_1fr]">
 			for _, row := range rows {
-				<dt class="text-ink-400">{ row.Label }</dt>
+				<dt class="text-ink-400">{ i18n.T(ctx, row.Label) }</dt>
 				<dd class="break-all font-mono text-ink-800">{ row.Value }</dd>
 			}
 		</dl>

@@ -12,6 +12,7 @@ import (
 	"github.com/RizkyChandra/kaku/internal/api"
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
 
@@ -31,7 +32,7 @@ func (h *Handler) apiKeys(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" {
-		h.renderAPIKeys(w, r, http.StatusBadRequest, "", "Give the key a name.")
+		h.renderAPIKeys(w, r, http.StatusBadRequest, "", i18n.T(r.Context(), "keys.errNameRequired"))
 		return
 	}
 	u, _ := auth.UserFrom(r.Context())
@@ -41,7 +42,7 @@ func (h *Handler) createAPIKey(w http.ResponseWriter, r *http.Request) {
 		Name: name, KeyHash: api.HashKey(key), CreatedBy: u.ID,
 	}); err != nil {
 		slog.ErrorContext(r.Context(), "create api key", "err", err)
-		h.renderAPIKeys(w, r, http.StatusInternalServerError, "", "Could not create the key. Try again.")
+		h.renderAPIKeys(w, r, http.StatusInternalServerError, "", i18n.T(r.Context(), "keys.errCreate"))
 		return
 	}
 	// The only time the plaintext exists anywhere: only its hash was stored.
@@ -75,5 +76,5 @@ func (h *Handler) renderAPIKeys(w http.ResponseWriter, r *http.Request, status i
 		http.Error(w, "could not load keys", http.StatusInternalServerError)
 		return
 	}
-	renderStatus(w, r, status, view.APIKeys(h.page(r, "Content API keys", "keys"), keys, created, errMsg))
+	renderStatus(w, r, status, view.APIKeys(h.page(r, i18n.T(r.Context(), "keys.title"), "keys"), keys, created, errMsg))
 }

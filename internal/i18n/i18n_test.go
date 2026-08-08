@@ -2,8 +2,11 @@ package i18n_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"testing"
 
 	"github.com/RizkyChandra/kaku/internal/i18n"
@@ -164,5 +167,64 @@ func write(t *testing.T, dir, code, name, body string) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, code, name), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Every language must define exactly the keys English does, with the same
+// format verbs. A missing key silently falls back to English, which is fine at
+// runtime but hides an untranslated screen; a mismatched verb is worse - it
+// renders %!s(MISSING) only for the users of that language.
+func TestLocaleFilesAgree(t *testing.T) {
+	verbs := regexp.MustCompile(`%[a-zA-Z]`)
+	read := func(path string) map[string]string {
+		t.Helper()
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var m map[string]string
+		if err := json.Unmarshal(b, &m); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		return m
+	}
+
+	files, err := filepath.Glob("locales/en/*.json")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no English locale files: %v", err)
+	}
+	others, err := filepath.Glob("locales/*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, enPath := range files {
+		name := filepath.Base(enPath)
+		if name == "locale.json" {
+			continue
+		}
+		en := read(enPath)
+		for _, dir := range others {
+			code := filepath.Base(dir)
+			if code == "en" {
+				continue
+			}
+			got := read(filepath.Join(dir, name))
+			for k, want := range en {
+				have, ok := got[k]
+				if !ok {
+					t.Errorf("%s/%s: missing key %q", code, name, k)
+					continue
+				}
+				if a, b := verbs.FindAllString(want, -1), verbs.FindAllString(have, -1); !slices.Equal(a, b) {
+					t.Errorf("%s/%s: key %q has verbs %v, English has %v", code, name, k, b, a)
+				}
+			}
+			for k := range got {
+				if _, ok := en[k]; !ok {
+					t.Errorf("%s/%s: key %q is not in English", code, name, k)
+				}
+			}
+		}
 	}
 }

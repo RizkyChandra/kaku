@@ -1,0 +1,17 @@
+{
+  "tags.title": "Tag",
+  "tags.name": "Nama",
+  "tags.slug": "Slug",
+  "tags.description": "Deskripsi",
+  "tags.slugPlaceholder": "dari nama",
+  "tags.add": "Tambah tag",
+  "tags.posts": "Tulisan",
+  "tags.actions": "Tindakan",
+  "tags.empty": "Belum ada tag.",
+  "tags.edit": "Ubah",
+  "tags.delete": "Hapus",
+  "tags.confirmDelete": "Hapus %s? Tulisan yang memakainya tetap punya tag lainnya.",
+  "tags.save": "Simpan tag",
+  "tags.cancel": "Batal",
+  "tags.errNameRequired": "Tag harus punya nama."
+}

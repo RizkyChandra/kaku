@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 )
 
 func tagPath(id int64, suffix string) string {
@@ -21,40 +22,40 @@ func tagRowPath(t db.ListTagsRow, suffix string) string {
 // in place, one row at a time.
 templ Tags(p Page, tags []db.ListTagsRow, page, pages int, errMsg string) {
 	@Shell(p) {
-		@PageHeader("Tags")
+		@PageHeader(i18n.T(ctx, "tags.title"))
 		<form method="post" action="/admin/tags" class="mb-8 rounded-lg border border-ink-200 bg-white p-6">
 			if errMsg != "" {
 				<p class="mb-4 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ errMsg }</p>
 			}
 			<div class="grid gap-4 sm:grid-cols-3">
 				<div>
-					<label class="block text-sm font-medium" for="name">Name</label>
+					<label class="block text-sm font-medium" for="name">{ i18n.T(ctx, "tags.name") }</label>
 					<input id="name" name="name" required class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium" for="slug">Slug</label>
-					<input id="slug" name="slug" placeholder="from the name" class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
+					<label class="block text-sm font-medium" for="slug">{ i18n.T(ctx, "tags.slug") }</label>
+					<input id="slug" name="slug" placeholder={ i18n.T(ctx, "tags.slugPlaceholder") } class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium" for="description">Description</label>
+					<label class="block text-sm font-medium" for="description">{ i18n.T(ctx, "tags.description") }</label>
 					<input id="description" name="description" class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 				</div>
 			</div>
-			<button type="submit" class="mt-4 rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">Add tag</button>
+			<button type="submit" class="mt-4 rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">{ i18n.T(ctx, "tags.add") }</button>
 		</form>
 		<div class="overflow-hidden rounded-lg border border-ink-200 bg-white">
 			<table class="w-full text-left text-sm">
 				<thead class="border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400">
 					<tr>
-						<th scope="col" class="px-4 py-3 font-medium">Name</th>
-						<th scope="col" class="px-4 py-3 font-medium">Slug</th>
-						<th scope="col" class="px-4 py-3 font-medium">Posts</th>
-						<th scope="col" class="px-4 py-3 font-medium"><span class="sr-only">Actions</span></th>
+						<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "tags.name") }</th>
+						<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "tags.slug") }</th>
+						<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "tags.posts") }</th>
+						<th scope="col" class="px-4 py-3 font-medium"><span class="sr-only">{ i18n.T(ctx, "tags.actions") }</span></th>
 					</tr>
 				</thead>
 				<tbody>
 					if len(tags) == 0 {
-						<tr><td colspan="4" class="px-4 py-6 text-ink-400">No tags yet.</td></tr>
+						<tr><td colspan="4" class="px-4 py-6 text-ink-400">{ i18n.T(ctx, "tags.empty") }</td></tr>
 					}
 					for _, t := range tags {
 						@TagRow(t)
@@ -79,15 +80,15 @@ templ TagRow(t db.ListTagsRow) {
 				hx-target="closest tr"
 				hx-swap="outerHTML"
 				class="text-ink-600 underline underline-offset-2 hover:text-vermilion"
-			>Edit<span class="sr-only"> { t.Name }</span></button>
+			>{ i18n.T(ctx, "tags.edit") }<span class="sr-only">{ " " + t.Name }</span></button>
 			<button
 				type="button"
 				hx-post={ tagPath(t.ID, "/delete") }
 				hx-target="closest tr"
 				hx-swap="outerHTML"
-				hx-confirm={ "Delete " + t.Name + "? Posts tagged with it keep their other tags." }
+				hx-confirm={ i18n.T(ctx, "tags.confirmDelete", t.Name) }
 				class="ml-4 text-ink-600 underline underline-offset-2 hover:text-vermilion"
-			>Delete<span class="sr-only"> { t.Name }</span></button>
+			>{ i18n.T(ctx, "tags.delete") }<span class="sr-only">{ " " + t.Name }</span></button>
 		</td>
 	</tr>
 }
@@ -100,7 +101,7 @@ templ TagEditRow(t db.ListTagsRow, errMsg string) {
 			}
 			<form hx-post={ tagRowPath(t, "") } hx-target="closest tr" hx-swap="outerHTML" class="flex flex-wrap items-end gap-3">
 				<div>
-					<label class="block text-xs font-medium" for={ "name-" + strconv.FormatInt(t.ID, 10) }>Name</label>
+					<label class="block text-xs font-medium" for={ "name-" + strconv.FormatInt(t.ID, 10) }>{ i18n.T(ctx, "tags.name") }</label>
 					<input
 						id={ "name-" + strconv.FormatInt(t.ID, 10) }
 						name="name"
@@ -110,7 +111,7 @@ templ TagEditRow(t db.ListTagsRow, errMsg string) {
 					/>
 				</div>
 				<div>
-					<label class="block text-xs font-medium" for={ "slug-" + strconv.FormatInt(t.ID, 10) }>Slug</label>
+					<label class="block text-xs font-medium" for={ "slug-" + strconv.FormatInt(t.ID, 10) }>{ i18n.T(ctx, "tags.slug") }</label>
 					<input
 						id={ "slug-" + strconv.FormatInt(t.ID, 10) }
 						name="slug"
@@ -119,7 +120,7 @@ templ TagEditRow(t db.ListTagsRow, errMsg string) {
 					/>
 				</div>
 				<div class="grow">
-					<label class="block text-xs font-medium" for={ "description-" + strconv.FormatInt(t.ID, 10) }>Description</label>
+					<label class="block text-xs font-medium" for={ "description-" + strconv.FormatInt(t.ID, 10) }>{ i18n.T(ctx, "tags.description") }</label>
 					<input
 						id={ "description-" + strconv.FormatInt(t.ID, 10) }
 						name="description"
@@ -127,14 +128,14 @@ templ TagEditRow(t db.ListTagsRow, errMsg string) {
 						class="mt-1 w-full rounded-md border border-ink-200 px-2 py-1 focus:border-vermilion focus:outline-none"
 					/>
 				</div>
-				<button type="submit" class="rounded-md bg-vermilion px-3 py-1.5 text-sm font-medium text-white hover:bg-vermilion-dark">Save tag</button>
+				<button type="submit" class="rounded-md bg-vermilion px-3 py-1.5 text-sm font-medium text-white hover:bg-vermilion-dark">{ i18n.T(ctx, "tags.save") }</button>
 				<button
 					type="button"
 					hx-get={ tagRowPath(t, "") }
 					hx-target="closest tr"
 					hx-swap="outerHTML"
 					class="px-1 py-1.5 text-sm text-ink-600 underline underline-offset-2 hover:text-vermilion"
-				>Cancel</button>
+				>{ i18n.T(ctx, "tags.cancel") }</button>
 			</form>
 		</td>
 	</tr>

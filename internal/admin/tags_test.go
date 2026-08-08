@@ -230,6 +230,37 @@ func TestTagCreateForbiddenForAuthor(t *testing.T) {
 	}
 }
 
+// The screen and its htmx row fragments both translate: the fragment routes
+// never see the page struct, so the locale has to reach them off the context.
+func TestTagScreenTranslatedToJapanese(t *testing.T) {
+	h, q, s := tagSetup(t)
+	c := tagSignIn(t, q, s, auth.RoleEditor)
+
+	for _, tc := range []struct{ path, want string }{
+		{"/tags", "まだタグがありません。"},
+		{"/tags", "タグを追加"},
+	} {
+		req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+		req.AddCookie(c)
+		req.Header.Set("Accept-Language", "ja")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if !strings.Contains(rec.Body.String(), tc.want) {
+			t.Errorf("GET %s did not render %q", tc.path, tc.want)
+		}
+	}
+
+	tag := tagMany(t, q, 1)[0]
+	req := httptest.NewRequest(http.MethodGet, "/tags/"+strconv.FormatInt(tag.ID, 10)+"/edit", nil)
+	req.AddCookie(c)
+	req.Header.Set("Accept-Language", "ja")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if !strings.Contains(rec.Body.String(), "タグを保存") {
+		t.Errorf("the edit fragment was not translated: %s", rec.Body)
+	}
+}
+
 func TestTagDeleteRemovesRow(t *testing.T) {
 	h, q, s := tagSetup(t)
 	c := tagSignIn(t, q, s, auth.RoleOwner)

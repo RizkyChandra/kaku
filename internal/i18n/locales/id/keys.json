@@ -1,0 +1,20 @@
+{
+  "keys.title": "Kunci Content API",
+  "keys.introBefore": "Pembaca melakukan autentikasi dengan",
+  "keys.introAfter": ".",
+  "keys.warning": "Salin kunci ini sekarang — kunci ini tidak akan pernah ditampilkan lagi.",
+  "keys.nameLabel": "Nama kunci",
+  "keys.namePlaceholder": "Nama kunci, mis. situs marketing",
+  "keys.create": "Buat kunci",
+  "keys.empty": "Belum ada kunci. Buat satu untuk membaca Content API.",
+  "keys.name": "Nama",
+  "keys.createdBy": "Dibuat oleh",
+  "keys.created": "Dibuat",
+  "keys.lastUsed": "Terakhir dipakai",
+  "keys.actions": "Tindakan",
+  "keys.never": "Belum pernah",
+  "keys.revoke": "Cabut",
+  "keys.confirmRevoke": "Cabut %s? Apa pun yang memakai kunci ini langsung berhenti bekerja.",
+  "keys.errNameRequired": "Beri nama untuk kunci ini.",
+  "keys.errCreate": "Kunci tidak bisa dibuat. Coba lagi."
+}
