@@ -307,3 +307,18 @@ func TestSearchHXRequestReturnsFragment(t *testing.T) {
 		t.Errorf("full page has no results: %s", full)
 	}
 }
+
+// Paging must keep the language filter. Without it page 2 silently widens back
+// to every language, which reads as duplicate results appearing from nowhere.
+func TestSearchPagerKeepsLanguage(t *testing.T) {
+	h, q, router := newTest(t)
+	u := newUser(t, q, "writer@example.com", auth.RoleAuthor)
+	c := login(t, h, u)
+	for i := 0; i <= searchLimit; i++ {
+		searchPost(t, q, u, "Wombat JA "+strconv.Itoa(i), "wombat sighting", "ja")
+	}
+	body := searchGet(t, router, c, "/admin/search?q=wombat&lang=ja", true).Body.String()
+	if !strings.Contains(body, "lang=ja") {
+		t.Errorf("pager dropped the language filter: %s", body)
+	}
+}

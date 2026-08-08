@@ -23,14 +23,20 @@ type SearchRow struct {
 
 type SearchResults struct {
 	Query string
+	// Lang is the ?lang= filter, carried so paging does not silently widen the
+	// search back to every language on page 2.
+	Lang  string
 	Page  int
 	Pages int
 	Rows  []SearchRow
 }
 
-// Href links to this search at page n, keeping the query.
+// Href links to this search at page n, keeping the query and the filter.
 func (res SearchResults) Href(n int) string {
 	v := url.Values{"q": {res.Query}}
+	if res.Lang != "" {
+		v.Set("lang", res.Lang)
+	}
 	if n > 1 {
 		v.Set("page", strconv.Itoa(n))
 	}

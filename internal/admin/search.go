@@ -36,9 +36,13 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 	if page < 1 {
 		page = 1
 	}
-	res := view.SearchResults{Query: strings.TrimSpace(r.URL.Query().Get("q")), Page: page}
+	res := view.SearchResults{
+		Query: strings.TrimSpace(r.URL.Query().Get("q")),
+		Lang:  strings.ToLower(strings.TrimSpace(r.URL.Query().Get("lang"))),
+		Page:  page,
+	}
 	if res.Query != "" {
-		rows, total, err := h.searchPage(r.Context(), res.Query, r.URL.Query().Get("lang"), page)
+		rows, total, err := h.searchPage(r.Context(), res.Query, res.Lang, page)
 		if err != nil {
 			h.fail(w, r, err)
 			return
