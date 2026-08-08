@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/RizkyChandra/kaku/internal/i18n"
 )
 
 // SearchRow is one hit. sqlc generates its own row type, so the handler
@@ -49,10 +51,10 @@ func (row SearchRow) highlighted() string {
 
 templ Search(p Page, res SearchResults) {
 	@Shell(p) {
-		@PageHeader("Search") {
+		@PageHeader(i18n.T(ctx, "search.title")) {
 		}
 		<form role="search" method="get" action="/admin/search" class="mb-6">
-			<label class="block text-sm font-medium" for="q">Search posts</label>
+			<label class="block text-sm font-medium" for="q">{ i18n.T(ctx, "search.label") }</label>
 			<div class="mt-1 flex gap-2">
 				<input
 					id="q"
@@ -60,14 +62,14 @@ templ Search(p Page, res SearchResults) {
 					type="search"
 					value={ res.Query }
 					autocomplete="off"
-					placeholder="Title or body text"
+					placeholder={ i18n.T(ctx, "search.placeholder") }
 					hx-get="/admin/search"
 					hx-trigger="input changed delay:300ms, search"
 					hx-target="#results"
 					class="w-full max-w-md rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"
 				/>
 				<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
-					Search
+					{ i18n.T(ctx, "search.submit") }
 				</button>
 			</div>
 		</form>
@@ -81,9 +83,9 @@ templ Search(p Page, res SearchResults) {
 // full page ships with JavaScript off.
 templ SearchHits(res SearchResults) {
 	if res.Query == "" {
-		<p class="text-ink-600">Type a word to search posts and pages.</p>
+		<p class="text-ink-600">{ i18n.T(ctx, "search.prompt") }</p>
 	} else if len(res.Rows) == 0 {
-		<p class="text-ink-600">Nothing matches { res.Query }.</p>
+		<p class="text-ink-600">{ i18n.T(ctx, "search.empty", res.Query) }</p>
 	} else {
 		<ul class="divide-y divide-ink-100 overflow-hidden rounded-lg border border-ink-200 bg-white">
 			for _, row := range res.Rows {
@@ -110,15 +112,15 @@ templ SearchHits(res SearchResults) {
 
 templ searchPager(res SearchResults) {
 	if res.Pages > 1 {
-		<nav class="mt-4 flex items-center justify-between text-sm" aria-label="Pagination">
+		<nav class="mt-4 flex items-center justify-between text-sm" aria-label={ i18n.T(ctx, "search.pagination") }>
 			if res.Page > 1 {
-				<a href={ templ.SafeURL(res.Href(res.Page - 1)) } class="text-ink-600 hover:text-vermilion">← Newer</a>
+				<a href={ templ.SafeURL(res.Href(res.Page - 1)) } class="text-ink-600 hover:text-vermilion">← { i18n.T(ctx, "search.newer") }</a>
 			} else {
 				<span></span>
 			}
-			<span class="text-ink-400">Page { strconv.Itoa(res.Page) } of { strconv.Itoa(res.Pages) }</span>
+			<span class="text-ink-400">{ i18n.T(ctx, "search.pager", res.Page, res.Pages) }</span>
 			if res.Page < res.Pages {
-				<a href={ templ.SafeURL(res.Href(res.Page + 1)) } class="text-ink-600 hover:text-vermilion">Older →</a>
+				<a href={ templ.SafeURL(res.Href(res.Page + 1)) } class="text-ink-600 hover:text-vermilion">{ i18n.T(ctx, "search.older") } →</a>
 			} else {
 				<span></span>
 			}

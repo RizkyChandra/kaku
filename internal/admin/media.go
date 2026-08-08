@@ -14,6 +14,7 @@ import (
 
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/media"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
@@ -57,7 +58,7 @@ func (h *Handler) mediaIndex(w http.ResponseWriter, r *http.Request) {
 		mediaFail(w, r, "count media", err)
 		return
 	}
-	render(w, r, view.Media(h.page(r, "Media", "media"), view.MediaList{
+	render(w, r, view.Media(h.page(r, i18n.T(r.Context(), "media.title"), "media"), view.MediaList{
 		Items:      items,
 		Page:       page,
 		Pages:      int((total + mediaPerPage - 1) / mediaPerPage),
@@ -67,7 +68,7 @@ func (h *Handler) mediaIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) mediaUpload(w http.ResponseWriter, r *http.Request) {
-	if !h.mediaReady(w) {
+	if !h.mediaReady(w, r) {
 		return
 	}
 	u, _ := auth.UserFrom(r.Context())
@@ -76,12 +77,12 @@ func (h *Handler) mediaUpload(w http.ResponseWriter, r *http.Request) {
 	// the file itself; this covers the whole multipart envelope.
 	r.Body = http.MaxBytesReader(w, r.Body, media.MaxSize+1<<20)
 	if err := r.ParseMultipartForm(4 << 20); err != nil {
-		http.Error(w, "That upload is too large or malformed.", http.StatusBadRequest)
+		http.Error(w, i18n.T(r.Context(), "media.error.malformed"), http.StatusBadRequest)
 		return
 	}
 	f, hdr, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, "Choose a file to upload.", http.StatusBadRequest)
+		http.Error(w, i18n.T(r.Context(), "media.error.noFile"), http.StatusBadRequest)
 		return
 	}
 	defer f.Close()
@@ -89,10 +90,10 @@ func (h *Handler) mediaUpload(w http.ResponseWriter, r *http.Request) {
 	obj, err := h.media.Upload(r.Context(), hdr.Filename, f, hdr.Size, hdr.Header.Get("Content-Type"))
 	switch {
 	case errors.Is(err, media.ErrUnsupportedType):
-		http.Error(w, "That file type is not supported. Upload a PNG, JPEG, GIF or WebP.", http.StatusBadRequest)
+		http.Error(w, i18n.T(r.Context(), "media.error.type"), http.StatusBadRequest)
 		return
 	case errors.Is(err, media.ErrTooLarge):
-		http.Error(w, "That file is larger than 10 MB.", http.StatusBadRequest)
+		http.Error(w, i18n.T(r.Context(), "media.error.tooLarge"), http.StatusBadRequest)
 		return
 	case err != nil:
 		mediaFail(w, r, "media upload", err)
@@ -132,7 +133,7 @@ func (h *Handler) mediaAlt(w http.ResponseWriter, r *http.Request) {
 	// Rejected, not truncated: silently cutting someone's sentence in half is
 	// worse than telling them it is too long.
 	if utf8.RuneCountInString(alt) > mediaAltMax {
-		http.Error(w, "That description is too long. Keep it under 300 characters.", http.StatusBadRequest)
+		http.Error(w, i18n.T(r.Context(), "media.error.altTooLong", mediaAltMax), http.StatusBadRequest)
 		return
 	}
 	if err := h.q.UpdateMediaAlt(r.Context(), db.UpdateMediaAltParams{Alt: alt, ID: id}); err != nil {
@@ -152,7 +153,7 @@ func (h *Handler) mediaAlt(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) mediaDelete(w http.ResponseWriter, r *http.Request) {
-	if !h.mediaReady(w) {
+	if !h.mediaReady(w, r) {
 		return
 	}
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
@@ -184,9 +185,9 @@ func (h *Handler) mediaDelete(w http.ResponseWriter, r *http.Request) {
 
 // mediaReady guards the handlers that touch object storage. h.media is nil when
 // no bucket is configured, and Kaku is meant to run without one.
-func (h *Handler) mediaReady(w http.ResponseWriter) bool {
+func (h *Handler) mediaReady(w http.ResponseWriter, r *http.Request) bool {
 	if h.media == nil {
-		http.Error(w, "Media storage is not configured. Set KAKU_S3_BUCKET to enable uploads.", http.StatusServiceUnavailable)
+		http.Error(w, i18n.T(r.Context(), "media.error.notConfigured"), http.StatusServiceUnavailable)
 		return false
 	}
 	return true
@@ -200,5 +201,5 @@ func mediaCanDelete(r *http.Request) bool {
 // mediaFail logs the real cause and shows the user a generic one.
 func mediaFail(w http.ResponseWriter, r *http.Request, msg string, err error) {
 	slog.ErrorContext(r.Context(), msg, "err", err)
-	http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+	http.Error(w, i18n.T(r.Context(), "media.error.generic"), http.StatusInternalServerError)
 }

@@ -1,0 +1,17 @@
+{
+  "tags.title": "タグ",
+  "tags.name": "名前",
+  "tags.slug": "スラッグ",
+  "tags.description": "説明",
+  "tags.slugPlaceholder": "名前から生成",
+  "tags.add": "タグを追加",
+  "tags.posts": "記事数",
+  "tags.actions": "操作",
+  "tags.empty": "まだタグがありません。",
+  "tags.edit": "編集",
+  "tags.delete": "削除",
+  "tags.confirmDelete": "%s を削除しますか？このタグが付いた記事は、他のタグをそのまま保持します。",
+  "tags.save": "タグを保存",
+  "tags.cancel": "キャンセル",
+  "tags.errNameRequired": "タグには名前が必要です。"
+}

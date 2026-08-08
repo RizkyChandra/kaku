@@ -18,6 +18,7 @@ import (
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/content"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
 
@@ -90,11 +91,7 @@ func (h *Handler) listPosts(typ string) http.HandlerFunc {
 			}
 		}
 
-		title := "Posts"
-		if typ == "page" {
-			title = "Pages"
-		}
-		render(w, r, view.Posts(h.page(r, title, navKey(typ)), view.PostList{
+		render(w, r, view.Posts(h.page(r, i18n.T(ctx, "posts.title."+typ), navKey(typ)), view.PostList{
 			Type:   typ,
 			Status: status,
 			Page:   page,
@@ -108,7 +105,7 @@ func (h *Handler) newPost(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
 	typ := postType(r.URL.Query().Get("type"))
 	vis := postVisibility(db.LoadSettings(r.Context(), h.q).Get("default_visibility"))
-	render(w, r, view.Editor(h.page(r, "New "+typ, navKey(typ)), view.EditorData{
+	render(w, r, view.Editor(h.page(r, i18n.T(r.Context(), "posts.new."+typ), navKey(typ)), view.EditorData{
 		Post:       db.Post{Type: typ, Status: "draft", Visibility: vis},
 		CanPublish: canPublish(u),
 	}))
@@ -137,8 +134,8 @@ func (h *Handler) createPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if msg := f.validate(); msg != "" {
-		h.editorError(w, r, db.Post{Type: typ}, f, u, msg)
+	if key := f.validate(); key != "" {
+		h.editorError(w, r, db.Post{Type: typ}, f, u, i18n.T(ctx, key))
 		return
 	}
 	slug, err := content.UniqueSlug(ctx, f.slugBase(), h.q.PostSlugExists)
@@ -183,8 +180,8 @@ func (h *Handler) updatePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if msg := f.validate(); msg != "" {
-		h.editorError(w, r, p, f, u, msg)
+	if key := f.validate(); key != "" {
+		h.editorError(w, r, p, f, u, i18n.T(ctx, key))
 		return
 	}
 	slug, err := content.UniqueSlug(ctx, f.slugBase(), func(ctx context.Context, s string) (bool, error) {
@@ -399,7 +396,7 @@ func (h *Handler) editorError(w http.ResponseWriter, r *http.Request, p db.Post,
 	p.Html = content.Render(f.Markdown)
 	title := p.Title
 	if title == "" {
-		title = "New " + p.Type
+		title = i18n.T(r.Context(), "posts.new."+p.Type)
 	}
 	renderStatus(w, r, http.StatusBadRequest, view.Editor(h.page(r, title, navKey(p.Type)), view.EditorData{
 		Post:       p,
@@ -434,13 +431,14 @@ func readPostForm(r *http.Request) postForm {
 	}
 }
 
+// validate returns the message key of the first problem, or "".
 func (f postForm) validate() string {
 	if f.Title == "" {
-		return "Give it a title before saving."
+		return "editor.error.title"
 	}
 	if f.Status == "scheduled" {
 		if _, err := parseSchedule(f.Schedule); err != nil {
-			return "A scheduled post needs a publish date."
+			return "editor.error.schedule"
 		}
 	}
 	return ""

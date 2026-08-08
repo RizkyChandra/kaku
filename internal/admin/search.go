@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
 
@@ -55,7 +56,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 		render(w, r, view.SearchHits(res))
 		return
 	}
-	render(w, r, view.Search(h.page(r, "Search", "search"), res))
+	render(w, r, view.Search(h.page(r, i18n.T(r.Context(), "search.title"), "search"), res))
 }
 
 // escapeFTS turns what someone typed into an FTS5 query expression. The input

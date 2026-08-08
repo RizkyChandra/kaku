@@ -15,6 +15,7 @@ import (
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/content"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
 
@@ -40,7 +41,7 @@ func (h *Handler) tagList(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) tagCreate(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" {
-		h.tagPage(w, r, http.StatusBadRequest, "A tag needs a name.")
+		h.tagPage(w, r, http.StatusBadRequest, i18n.T(r.Context(), "tags.errNameRequired"))
 		return
 	}
 	slug, err := h.tagUniqueSlug(r.Context(), name, r.FormValue("slug"), 0)
@@ -82,7 +83,7 @@ func (h *Handler) tagUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" {
-		renderStatus(w, r, http.StatusBadRequest, view.TagEditRow(t, "A tag needs a name."))
+		renderStatus(w, r, http.StatusBadRequest, view.TagEditRow(t, i18n.T(r.Context(), "tags.errNameRequired")))
 		return
 	}
 	slug, err := h.tagUniqueSlug(r.Context(), name, r.FormValue("slug"), t.ID)
@@ -131,7 +132,7 @@ func (h *Handler) tagPage(w http.ResponseWriter, r *http.Request, status int, er
 		tagFail(w, r, fmt.Errorf("list tags: %w", err))
 		return
 	}
-	renderStatus(w, r, status, view.Tags(h.page(r, "Tags", "tags"), tags, page, pages, errMsg))
+	renderStatus(w, r, status, view.Tags(h.page(r, i18n.T(r.Context(), "tags.title"), "tags"), tags, page, pages, errMsg))
 }
 
 // tagLookup resolves the {id} route param, answering 404 itself when it cannot.

@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -17,6 +20,7 @@ import (
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/config"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/media"
 )
 
@@ -271,6 +275,61 @@ func TestMediaAltTooLongIsRejected(t *testing.T) {
 	// The cap counts characters, not bytes: the same text one rune shorter fits.
 	if rec := f.do(mediaAltRequest(strings.Repeat("猫", mediaAltMax))); rec.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200 at exactly the cap", rec.Code)
+	}
+}
+
+func TestMediaLibraryInJapanese(t *testing.T) {
+	f := mediaSetup(t, auth.RoleAdmin, true)
+	if rec := f.do(mediaUploadRequest(t, "neko.png", mediaPNG(t))); rec.Code != http.StatusOK {
+		t.Fatalf("upload status = %d: %s", rec.Code, rec.Body)
+	}
+
+	body := f.do(httptest.NewRequest(http.MethodGet, "/media?lang=ja", nil)).Body.String()
+	for _, want := range []string{
+		"メディア",         // heading
+		"画像をアップロード",    // the upload form
+		"代替テキスト",       // the alt-text field
+		"neko.png を削除", // an aria-label built with the filename
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("library is missing %q in Japanese: %s", want, body)
+		}
+	}
+	if strings.Contains(body, "Upload an image") {
+		t.Error("English leaked into the Japanese library")
+	}
+}
+
+// A translation is arbitrary text, and the copy buttons put it in the DOM from
+// an inline handler. An apostrophe must not close a JavaScript string literal
+// that no longer exists.
+func TestMediaCopiedLabelWithApostrophe(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "fr")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "media.json"),
+		[]byte(`{"media.copied":"l'image copiée"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := i18n.Load(filepath.Dir(dir)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = i18n.Load("") })
+
+	f := mediaSetup(t, auth.RoleAdmin, true)
+	if rec := f.do(mediaUploadRequest(t, "quote.png", mediaPNG(t))); rec.Code != http.StatusOK {
+		t.Fatalf("upload status = %d: %s", rec.Code, rec.Body)
+	}
+	body := f.do(httptest.NewRequest(http.MethodGet, "/media?lang=fr", nil)).Body.String()
+
+	if !strings.Contains(body, `data-copied="l&#39;image copiée"`) {
+		t.Errorf("the word is not carried on an escaped data attribute: %s", body)
+	}
+	for _, onclick := range regexp.MustCompile(`onclick="[^"]*"`).FindAllString(body, -1) {
+		if strings.ContainsAny(onclick, "'") {
+			t.Errorf("translated text reached the inline JavaScript: %s", onclick)
+		}
 	}
 }
 

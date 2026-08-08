@@ -76,6 +76,45 @@ func userDo(t *testing.T, h *Handler, method, path string, form url.Values, c *h
 	return w
 }
 
+// The staff screen and its refusals must be readable to someone who cannot read
+// English, since that is exactly where an admin gets stuck.
+func TestUserStaffScreenInJapanese(t *testing.T) {
+	h, q := userHandler(t)
+	owner := userMake(t, q, "owner@example.com", auth.RoleOwner)
+	c := userLogin(t, h, "owner@example.com")
+
+	ja := func(method, path string, form url.Values) string {
+		t.Helper()
+		var body io.Reader
+		if form != nil {
+			body = strings.NewReader(form.Encode())
+		}
+		req := httptest.NewRequest(method, path, body)
+		if form != nil {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+		req.Header.Set("Accept-Language", "ja")
+		req.AddCookie(c)
+		w := httptest.NewRecorder()
+		h.Router().ServeHTTP(w, req)
+		return w.Body.String()
+	}
+
+	list := ja("GET", "/users", nil)
+	if !strings.Contains(list, "スタッフを追加") || !strings.Contains(list, "オーナー") {
+		t.Error("staff list was not translated")
+	}
+	// The role value itself is protocol and must stay English.
+	if !strings.Contains(list, `value="owner"`) && !strings.Contains(list, "owner@example.com") {
+		t.Error("role values or emails were translated")
+	}
+
+	del := ja("POST", "/users/"+strconv.FormatInt(owner.ID, 10)+"/delete", url.Values{})
+	if !strings.Contains(del, "これが最後のオーナーのため、削除できません。") {
+		t.Errorf("last-owner refusal was not translated; body=%q", del)
+	}
+}
+
 func TestUsersPaginates(t *testing.T) {
 	h, q := userHandler(t)
 	userMake(t, q, "owner@example.com", auth.RoleOwner)

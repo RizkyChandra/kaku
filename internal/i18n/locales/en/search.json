@@ -1,0 +1,12 @@
+{
+  "search.title": "Search",
+  "search.submit": "Search",
+  "search.label": "Search posts",
+  "search.placeholder": "Title or body text",
+  "search.prompt": "Type a word to search posts and pages.",
+  "search.empty": "Nothing matches %s.",
+  "search.pagination": "Pagination",
+  "search.pager": "Page %d of %d",
+  "search.newer": "Newer",
+  "search.older": "Older"
+}

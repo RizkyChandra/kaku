@@ -138,6 +138,37 @@ func TestScreensRender(t *testing.T) {
 	}
 }
 
+// ?lang= is enough to switch language, so the screens can be checked without a
+// stored preference.
+func TestPostScreensRenderInJapanese(t *testing.T) {
+	h, q, router := newTest(t)
+	c := login(t, h, newUser(t, q, "writer@example.com", auth.RoleAuthor))
+
+	send(t, router, c, "/admin/posts", postForms("Hello World", "body"))
+	p, err := q.GetPostBySlug(t.Context(), "hello-world")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strconv.FormatInt(p.ID, 10)
+
+	for path, want := range map[string]string{
+		"/admin/posts?lang=ja":            "タイトル",       // posts.col.title
+		"/admin/posts/new?lang=ja":        "スラッグ",       // editor.slug
+		"/admin/posts/" + id + "?lang=ja": "完全に削除しますか？", // posts.confirmDelete, inside the onclick
+	} {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		r.AddCookie(c)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s: status = %d", path, w.Code)
+		}
+		if !strings.Contains(w.Body.String(), want) {
+			t.Errorf("GET %s: body does not contain %q", path, want)
+		}
+	}
+}
+
 func TestCreatePostSlugCollision(t *testing.T) {
 	h, q, router := newTest(t)
 	c := login(t, h, newUser(t, q, "writer@example.com", auth.RoleAuthor))

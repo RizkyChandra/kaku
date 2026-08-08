@@ -5,6 +5,7 @@ import (
 
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 )
 
 // UserFormData carries a staff form's values back when validation fails, so
@@ -36,15 +37,15 @@ func pageHref(base string, n int) string {
 // copy because its links must also carry the ?status= filter.
 templ listPager(base string, page, pages int) {
 	if pages > 1 {
-		<nav class="mt-4 flex items-center justify-between text-sm" aria-label="Pagination">
+		<nav class="mt-4 flex items-center justify-between text-sm" aria-label={ i18n.T(ctx, "users.pager.aria") }>
 			if page > 1 {
-				<a href={ templ.SafeURL(pageHref(base, page-1)) } class="text-ink-600 hover:text-vermilion">← Newer</a>
+				<a href={ templ.SafeURL(pageHref(base, page-1)) } class="text-ink-600 hover:text-vermilion">{ i18n.T(ctx, "users.pager.newer") }</a>
 			} else {
 				<span></span>
 			}
-			<span class="text-ink-400">Page { strconv.Itoa(page) } of { strconv.Itoa(pages) }</span>
+			<span class="text-ink-400">{ i18n.T(ctx, "users.pager.page", page, pages) }</span>
 			if page < pages {
-				<a href={ templ.SafeURL(pageHref(base, page+1)) } class="text-ink-600 hover:text-vermilion">Older →</a>
+				<a href={ templ.SafeURL(pageHref(base, page+1)) } class="text-ink-600 hover:text-vermilion">{ i18n.T(ctx, "users.pager.older") }</a>
 			} else {
 				<span></span>
 			}
@@ -54,9 +55,9 @@ templ listPager(base string, page, pages int) {
 
 templ Users(p Page, users []db.User, page, pages int, errMsg string) {
 	@Shell(p) {
-		@PageHeader("Staff") {
+		@PageHeader(i18n.T(ctx, "users.title")) {
 			<a href="/admin/users/new" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
-				New staff member
+				{ i18n.T(ctx, "users.new") }
 			</a>
 		}
 		@userAlert(errMsg)
@@ -64,10 +65,10 @@ templ Users(p Page, users []db.User, page, pages int, errMsg string) {
 			<table class="w-full text-left text-sm">
 				<thead class="border-b border-ink-200 text-ink-600">
 					<tr>
-						<th scope="col" class="px-4 py-3 font-medium">Name</th>
-						<th scope="col" class="px-4 py-3 font-medium">Email</th>
-						<th scope="col" class="px-4 py-3 font-medium">Role</th>
-						<th scope="col" class="px-4 py-3"><span class="sr-only">Actions</span></th>
+						<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "users.name") }</th>
+						<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "users.email") }</th>
+						<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "users.role") }</th>
+						<th scope="col" class="px-4 py-3"><span class="sr-only">{ i18n.T(ctx, "users.actions") }</span></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -75,11 +76,11 @@ templ Users(p Page, users []db.User, page, pages int, errMsg string) {
 						<tr class="border-b border-ink-100 last:border-0">
 							<td class="px-4 py-3 font-medium">{ u.Name }</td>
 							<td class="px-4 py-3 text-ink-600">{ u.Email }</td>
-							<td class="px-4 py-3 text-ink-600">{ u.Role }</td>
+							<td class="px-4 py-3 text-ink-600">{ i18n.T(ctx, "users.role."+u.Role) }</td>
 							<td class="px-4 py-3 text-right whitespace-nowrap">
 								if userManageable(p.User, u) {
-									<a href={ templ.SafeURL(userPath(u.ID, "")) } aria-label={ "Edit " + u.Name } class="text-vermilion underline underline-offset-2 hover:text-vermilion-dark">
-										Edit
+									<a href={ templ.SafeURL(userPath(u.ID, "")) } aria-label={ i18n.T(ctx, "users.edit.aria", u.Name) } class="text-vermilion underline underline-offset-2 hover:text-vermilion-dark">
+										{ i18n.T(ctx, "users.edit") }
 									</a>
 									if p.User.ID != u.ID {
 										<form
@@ -90,10 +91,10 @@ templ Users(p Page, users []db.User, page, pages int, errMsg string) {
 											hx-select="body"
 											hx-target="body"
 											hx-swap="outerHTML"
-											hx-confirm={ "Delete " + u.Name + "? This cannot be undone." }
+											hx-confirm={ i18n.T(ctx, "users.delete.confirm", u.Name) }
 										>
-											<button type="submit" aria-label={ "Delete " + u.Name } class="text-ink-400 underline underline-offset-2 hover:text-vermilion">
-												Delete
+											<button type="submit" aria-label={ i18n.T(ctx, "users.delete.aria", u.Name) } class="text-ink-400 underline underline-offset-2 hover:text-vermilion">
+												{ i18n.T(ctx, "users.delete") }
 											</button>
 										</form>
 									}
@@ -111,7 +112,7 @@ templ Users(p Page, users []db.User, page, pages int, errMsg string) {
 templ UserForm(p Page, f UserFormData) {
 	@Shell(p) {
 		@PageHeader(p.Title) {
-			<a href="/admin/users" class="text-sm text-ink-600 underline underline-offset-2 hover:text-vermilion">Back to staff</a>
+			<a href="/admin/users" class="text-sm text-ink-600 underline underline-offset-2 hover:text-vermilion">{ i18n.T(ctx, "users.back") }</a>
 		}
 		@userAlert(f.Err)
 		<form
@@ -123,42 +124,43 @@ templ UserForm(p Page, f UserFormData) {
 			}
 			class="max-w-xl rounded-lg border border-ink-200 bg-white p-6"
 		>
-			<label class="block text-sm font-medium" for="name">Name</label>
+			<label class="block text-sm font-medium" for="name">{ i18n.T(ctx, "users.name") }</label>
 			<input id="name" name="name" type="text" value={ f.Target.Name } required autocomplete="name" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
-			<label class="block text-sm font-medium" for="email">Email</label>
+			<label class="block text-sm font-medium" for="email">{ i18n.T(ctx, "users.email") }</label>
 			<input id="email" name="email" type="email" value={ f.Target.Email } required autocomplete="email" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
-			<label class="block text-sm font-medium" for="role">Role</label>
+			<label class="block text-sm font-medium" for="role">{ i18n.T(ctx, "users.role") }</label>
 			<select id="role" name="role" class="mt-1 mb-4 w-full rounded-md border border-ink-200 bg-white px-3 py-2 focus:border-vermilion focus:outline-none">
 				for _, role := range f.Roles {
-					<option value={ role } selected?={ role == f.Target.Role }>{ role }</option>
+					// The value stays the auth.Role* constant; only the label translates.
+					<option value={ role } selected?={ role == f.Target.Role }>{ i18n.T(ctx, "users.role."+role) }</option>
 				}
 			</select>
 			if f.Target.ID == 0 {
-				<label class="block text-sm font-medium" for="password">Password</label>
+				<label class="block text-sm font-medium" for="password">{ i18n.T(ctx, "users.password") }</label>
 				<input id="password" name="password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 mb-1 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
-				<p class="mb-4 text-xs text-ink-400">At least 8 characters. Share it with them and let them change it from their profile.</p>
+				<p class="mb-4 text-xs text-ink-400">{ i18n.T(ctx, "users.passwordHint") }</p>
 			} else {
-				<label class="block text-sm font-medium" for="bio">Bio</label>
+				<label class="block text-sm font-medium" for="bio">{ i18n.T(ctx, "users.bio") }</label>
 				<textarea id="bio" name="bio" rows="3" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none">{ f.Target.Bio }</textarea>
-				<label class="block text-sm font-medium" for="image_url">Profile image URL</label>
+				<label class="block text-sm font-medium" for="image_url">{ i18n.T(ctx, "users.imageUrl") }</label>
 				<input id="image_url" name="image_url" type="url" value={ f.Target.ImageUrl } class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 			}
 			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
 				if f.Target.ID == 0 {
-					Create account
+					{ i18n.T(ctx, "users.create") }
 				} else {
-					Save changes
+					{ i18n.T(ctx, "users.save") }
 				}
 			</button>
 		</form>
 		if f.Target.ID != 0 && (p.User == nil || p.User.ID != f.Target.ID) {
 			<form method="post" action={ userPath(f.Target.ID, "/password") } class="mt-6 max-w-xl rounded-lg border border-ink-200 bg-white p-6">
-				<h2 class="font-serif text-xl">Set a new password</h2>
-				<p class="mt-1 mb-4 text-sm text-ink-600">This signs { f.Target.Name } out of every device.</p>
-				<label class="block text-sm font-medium" for="new-password">New password</label>
+				<h2 class="font-serif text-xl">{ i18n.T(ctx, "users.setPassword") }</h2>
+				<p class="mt-1 mb-4 text-sm text-ink-600">{ i18n.T(ctx, "users.setPassword.note", f.Target.Name) }</p>
+				<label class="block text-sm font-medium" for="new-password">{ i18n.T(ctx, "users.newPassword") }</label>
 				<input id="new-password" name="password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 				<button type="submit" class="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium hover:border-vermilion hover:text-vermilion">
-					Set password
+					{ i18n.T(ctx, "users.setPassword.submit") }
 				</button>
 			</form>
 		}
@@ -167,31 +169,31 @@ templ UserForm(p Page, f UserFormData) {
 
 templ Profile(p Page, u db.User, errMsg, okMsg string) {
 	@Shell(p) {
-		@PageHeader("Your profile")
+		@PageHeader(i18n.T(ctx, "users.profile.title"))
 		@userAlert(errMsg)
 		if okMsg != "" {
 			<p class="mb-6 rounded-md bg-ink-100 px-3 py-2 text-sm text-ink-800" role="status">{ okMsg }</p>
 		}
 		<form method="post" action="/admin/profile" class="max-w-xl rounded-lg border border-ink-200 bg-white p-6">
 			<p class="mb-4 text-sm text-ink-600">
-				Signed in as { u.Email } &middot; { u.Role }. Ask an owner or admin to change either.
+				{ i18n.T(ctx, "users.profile.signedIn", u.Email, i18n.T(ctx, "users.role."+u.Role)) }
 			</p>
-			<label class="block text-sm font-medium" for="name">Name</label>
+			<label class="block text-sm font-medium" for="name">{ i18n.T(ctx, "users.name") }</label>
 			<input id="name" name="name" type="text" value={ u.Name } required autocomplete="name" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
-			<label class="block text-sm font-medium" for="bio">Bio</label>
+			<label class="block text-sm font-medium" for="bio">{ i18n.T(ctx, "users.bio") }</label>
 			<textarea id="bio" name="bio" rows="3" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none">{ u.Bio }</textarea>
-			<label class="block text-sm font-medium" for="image_url">Profile image URL</label>
+			<label class="block text-sm font-medium" for="image_url">{ i18n.T(ctx, "users.imageUrl") }</label>
 			<input id="image_url" name="image_url" type="url" value={ u.ImageUrl } class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
-			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">Save profile</button>
+			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">{ i18n.T(ctx, "users.profile.save") }</button>
 		</form>
 		<form method="post" action="/admin/profile/password" class="mt-6 max-w-xl rounded-lg border border-ink-200 bg-white p-6">
-			<h2 class="font-serif text-xl">Change your password</h2>
-			<label class="mt-4 block text-sm font-medium" for="current-password">Current password</label>
+			<h2 class="font-serif text-xl">{ i18n.T(ctx, "users.profile.changePassword") }</h2>
+			<label class="mt-4 block text-sm font-medium" for="current-password">{ i18n.T(ctx, "users.profile.currentPassword") }</label>
 			<input id="current-password" name="current_password" type="password" required autocomplete="current-password" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
-			<label class="block text-sm font-medium" for="new-password">New password</label>
+			<label class="block text-sm font-medium" for="new-password">{ i18n.T(ctx, "users.newPassword") }</label>
 			<input id="new-password" name="password" type="password" minlength="8" required autocomplete="new-password" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 			<button type="submit" class="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium hover:border-vermilion hover:text-vermilion">
-				Change password
+				{ i18n.T(ctx, "users.profile.changePassword.submit") }
 			</button>
 		</form>
 	}
