@@ -22,6 +22,7 @@ import (
 	"github.com/RizkyChandra/kaku/internal/config"
 	"github.com/RizkyChandra/kaku/internal/content"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/media"
 	"github.com/RizkyChandra/kaku/internal/web/static"
 	"github.com/RizkyChandra/kaku/internal/web/view"
@@ -59,6 +60,11 @@ func run() error {
 	slog.Info("database ready", "path", cfg.DBPath)
 	q := db.New(sqlDB)
 	view.AssetVersion = version
+
+	if err := i18n.Load(cfg.LocalesDir); err != nil {
+		return err
+	}
+	slog.Info("locales loaded", "count", len(i18n.Available()), "dir", cfg.LocalesDir)
 
 	if err := auth.EnsureRoot(ctx, q, cfg); err != nil {
 		return err

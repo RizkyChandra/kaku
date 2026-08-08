@@ -1,6 +1,11 @@
 package view
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+
+	"github.com/RizkyChandra/kaku/internal/i18n"
+)
 
 // Stat is one number on the dashboard. Href makes it a link when the count is
 // worth acting on.
@@ -21,8 +26,8 @@ type DashboardData struct {
 
 templ Dashboard(p Page, d DashboardData) {
 	@Shell(p) {
-		@PageHeader("Dashboard") {
-			<a href="/admin/posts/new" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">New post</a>
+		@PageHeader(i18n.T(ctx, "dashboard.title")) {
+			<a href="/admin/posts/new" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">{ i18n.T(ctx, "dashboard.newPost") }</a>
 		}
 		<dl class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
 			for _, s := range d.Stats {
@@ -31,15 +36,15 @@ templ Dashboard(p Page, d DashboardData) {
 		</dl>
 		if d.Drafts > 0 || d.Scheduled > 0 {
 			<p class="mb-8 rounded-lg border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600">
-				{ needsAttention(d.Drafts, d.Scheduled) }
-				<a href="/admin/posts?status=draft" class="ml-1 text-vermilion underline underline-offset-2">Review</a>
+				{ needsAttention(ctx, d.Drafts, d.Scheduled) }
+				<a href="/admin/posts?status=draft" class="ml-1 text-vermilion underline underline-offset-2">{ i18n.T(ctx, "dashboard.review") }</a>
 			</p>
 		}
 		<section class="rounded-lg border border-ink-200 bg-white">
-			<h2 class="border-b border-ink-200 px-5 py-3 font-serif text-lg">Recent posts</h2>
+			<h2 class="border-b border-ink-200 px-5 py-3 font-serif text-lg">{ i18n.T(ctx, "dashboard.recent") }</h2>
 			if len(d.Recent) == 0 {
 				<p class="px-5 py-6 text-ink-600">
-					Nothing written yet. <a href="/admin/posts/new" class="text-vermilion underline underline-offset-2">Start a post</a>.
+					{ i18n.T(ctx, "dashboard.empty") } <a href="/admin/posts/new" class="text-vermilion underline underline-offset-2">{ i18n.T(ctx, "dashboard.start") }</a>
 				</p>
 			} else {
 				<ul>
@@ -59,7 +64,7 @@ templ Dashboard(p Page, d DashboardData) {
 
 templ statTile(s Stat) {
 	<div class="rounded-lg border border-ink-200 bg-white px-4 py-3">
-		<dt class="text-xs text-ink-400">{ s.Label }</dt>
+		<dt class="text-xs text-ink-400">{ i18n.T(ctx, s.Label) }</dt>
 		<dd class="mt-0.5 font-serif text-2xl">
 			if s.Href != "" {
 				<a href={ templ.SafeURL(s.Href) } class="hover:text-vermilion">{ fmt.Sprint(s.Count) }</a>
@@ -70,20 +75,17 @@ templ statTile(s Stat) {
 	</div>
 }
 
-func needsAttention(drafts, scheduled int64) string {
+// Pluralisation and word order both belong to the locale, so this composes
+// whole translated clauses rather than gluing an "s" onto an English noun.
+func needsAttention(ctx context.Context, drafts, scheduled int64) string {
 	switch {
 	case drafts > 0 && scheduled > 0:
-		return fmt.Sprintf("%s and %s waiting.", plural(drafts, "draft"), plural(scheduled, "scheduled post"))
+		return i18n.T(ctx, "dashboard.bothWaiting",
+			i18n.N(ctx, "dashboard.draftsWaiting", drafts),
+			i18n.N(ctx, "dashboard.scheduledWaiting", scheduled))
 	case drafts > 0:
-		return fmt.Sprintf("%s waiting.", plural(drafts, "draft"))
+		return i18n.N(ctx, "dashboard.draftsWaiting", drafts)
 	default:
-		return fmt.Sprintf("%s waiting.", plural(scheduled, "scheduled post"))
+		return i18n.N(ctx, "dashboard.scheduledWaiting", scheduled)
 	}
-}
-
-func plural(n int64, word string) string {
-	if n == 1 {
-		return fmt.Sprintf("1 %s", word)
-	}
-	return fmt.Sprintf("%d %ss", n, word)
 }

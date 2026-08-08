@@ -1,0 +1,19 @@
+{
+  "dashboard.title": "Dashboard",
+  "dashboard.newPost": "New post",
+  "dashboard.posts": "Posts",
+  "dashboard.pages": "Pages",
+  "dashboard.drafts": "Drafts",
+  "dashboard.tags": "Tags",
+  "dashboard.media": "Media",
+  "dashboard.staff": "Staff",
+  "dashboard.recent": "Recent posts",
+  "dashboard.empty": "Nothing written yet.",
+  "dashboard.start": "Start a post",
+  "dashboard.review": "Review",
+  "dashboard.draftsWaiting.one": "%d draft waiting.",
+  "dashboard.draftsWaiting.other": "%d drafts waiting.",
+  "dashboard.scheduledWaiting.one": "%d scheduled post waiting.",
+  "dashboard.scheduledWaiting.other": "%d scheduled posts waiting.",
+  "dashboard.bothWaiting": "%s and %s"
+}

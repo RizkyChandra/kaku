@@ -1,0 +1,12 @@
+{
+  "nav.posts": "Posts",
+  "nav.pages": "Pages",
+  "nav.search": "Search",
+  "nav.tags": "Tags",
+  "nav.media": "Media",
+  "nav.users": "Staff",
+  "nav.keys": "API keys",
+  "nav.settings": "Settings",
+  "nav.signOut": "Sign out",
+  "nav.language": "Language"
+}

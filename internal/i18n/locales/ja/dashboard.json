@@ -1,0 +1,19 @@
+{
+  "dashboard.title": "ダッシュボード",
+  "dashboard.newPost": "新規記事",
+  "dashboard.posts": "記事",
+  "dashboard.pages": "固定ページ",
+  "dashboard.drafts": "下書き",
+  "dashboard.tags": "タグ",
+  "dashboard.media": "メディア",
+  "dashboard.staff": "スタッフ",
+  "dashboard.recent": "最近の記事",
+  "dashboard.empty": "まだ何も書かれていません。",
+  "dashboard.start": "記事を書く",
+  "dashboard.review": "確認",
+  "dashboard.draftsWaiting.one": "下書きが%d件あります。",
+  "dashboard.draftsWaiting.other": "下書きが%d件あります。",
+  "dashboard.scheduledWaiting.one": "予約投稿が%d件あります。",
+  "dashboard.scheduledWaiting.other": "予約投稿が%d件あります。",
+  "dashboard.bothWaiting": "%s%s"
+}

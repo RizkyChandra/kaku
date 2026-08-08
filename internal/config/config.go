@@ -14,7 +14,11 @@ type Config struct {
 	DBPath       string
 	RootEmail    string
 	RootPassword string
-	S3           S3
+	// LocalesDir holds extra admin translations. Files here are loaded on top
+	// of the embedded ones, so a language can be added or corrected without a
+	// rebuild.
+	LocalesDir string
+	S3         S3
 }
 
 type S3 struct {
@@ -39,6 +43,7 @@ func Load() (Config, error) {
 		DBPath:       env("KAKU_DB_PATH", "/data/kaku.db"),
 		RootEmail:    os.Getenv("KAKU_ROOT_EMAIL"),
 		RootPassword: os.Getenv("KAKU_ROOT_PASSWORD"),
+		LocalesDir:   os.Getenv("KAKU_LOCALES_DIR"),
 		S3: S3{
 			Endpoint:  os.Getenv("KAKU_S3_ENDPOINT"),
 			Region:    env("KAKU_S3_REGION", "us-east-1"),

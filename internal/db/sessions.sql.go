@@ -55,7 +55,7 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID int64) error {
 }
 
 const getSessionUser = `-- name: GetSessionUser :one
-SELECT users.id, users.email, users.password_hash, users.name, users.role, users.bio, users.image_url, users.created_at, users.updated_at FROM sessions
+SELECT users.id, users.email, users.password_hash, users.name, users.role, users.bio, users.image_url, users.created_at, users.updated_at, users.locale FROM sessions
 JOIN users ON users.id = sessions.user_id
 WHERE sessions.id = ? AND sessions.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 `
@@ -73,6 +73,7 @@ func (q *Queries) GetSessionUser(ctx context.Context, id string) (User, error) {
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Locale,
 	)
 	return i, err
 }
