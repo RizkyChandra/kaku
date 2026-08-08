@@ -1,0 +1,20 @@
+{
+  "keys.title": "Content API keys",
+  "keys.introBefore": "Readers authenticate with",
+  "keys.introAfter": ".",
+  "keys.warning": "Copy this key now — it cannot be shown again.",
+  "keys.nameLabel": "Key name",
+  "keys.namePlaceholder": "Key name, e.g. marketing site",
+  "keys.create": "Create key",
+  "keys.empty": "No keys yet. Create one to read the Content API.",
+  "keys.name": "Name",
+  "keys.createdBy": "Created by",
+  "keys.created": "Created",
+  "keys.lastUsed": "Last used",
+  "keys.actions": "Actions",
+  "keys.never": "Never",
+  "keys.revoke": "Revoke",
+  "keys.confirmRevoke": "Revoke %s? Anything using this key stops working immediately.",
+  "keys.errNameRequired": "Give the key a name.",
+  "keys.errCreate": "Could not create the key. Try again."
+}

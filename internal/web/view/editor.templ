@@ -5,20 +5,34 @@ import (
 	"time"
 
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 )
 
 // EditorData is one post's form state. For a new post, Post is the zero value
 // with Type and Status filled in.
 type EditorData struct {
-	Post       db.Post
-	Tags       string // comma-separated tag names
-	Revisions  []db.ListRevisionsRow
-	CanPublish bool
-	Schedule   string // datetime-local value, UTC wall clock
-	Err        string
+	Post      db.Post
+	Tags      string // comma-separated tag names
+	Revisions []db.ListRevisionsRow
+	// Translations are the post's siblings, itself included.
+	Translations []db.ListTranslationsRow
+	CanPublish   bool
+	Schedule     string // datetime-local value, UTC wall clock
+	Err          string
 }
 
 func (e EditorData) IsNew() bool { return e.Post.ID == 0 }
+
+// Translation returns the sibling written in code, or nil. Linear over a
+// handful of languages.
+func (e EditorData) Translation(code string) *db.ListTranslationsRow {
+	for i := range e.Translations {
+		if e.Translations[i].Lang == code {
+			return &e.Translations[i]
+		}
+	}
+	return nil
+}
 
 func (e EditorData) Action() string {
 	if e.IsNew() {
@@ -40,16 +54,16 @@ templ Editor(p Page, e EditorData) {
 	@Shell(p) {
 		<form method="post" action={ templ.SafeURL(e.Action()) }>
 			@PageHeader(p.Title) {
-				<a href={ templ.SafeURL(e.Back()) } class="text-sm text-ink-600 hover:text-vermilion">Cancel</a>
+				<a href={ templ.SafeURL(e.Back()) } class="text-sm text-ink-600 hover:text-vermilion">{ i18n.T(ctx, "editor.cancel") }</a>
 				<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
-					Save { e.Post.Type }
+					{ i18n.T(ctx, "editor.save."+e.Post.Type) }
 				</button>
 			}
 			<input type="hidden" name="type" value={ e.Post.Type }/>
 			if e.Err != "" {
 				<p class="mb-4 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ e.Err }</p>
 			}
-			<label class="block text-sm font-medium" for="title">Title</label>
+			<label class="block text-sm font-medium" for="title">{ i18n.T(ctx, "editor.title") }</label>
 			<input
 				id="title"
 				name="title"
@@ -61,7 +75,7 @@ templ Editor(p Page, e EditorData) {
 			<div class="grid gap-6 lg:grid-cols-3">
 				<div class="grid gap-4 md:grid-cols-2 lg:col-span-2">
 					<div class="flex min-w-0 flex-col">
-						<label class="mb-1 text-sm font-medium" for="markdown">Markdown</label>
+						<label class="mb-1 text-sm font-medium" for="markdown">{ i18n.T(ctx, "editor.markdown") }</label>
 						<textarea
 							id="markdown"
 							name="markdown"
@@ -73,7 +87,7 @@ templ Editor(p Page, e EditorData) {
 						>{ e.Post.Markdown }</textarea>
 					</div>
 					<div class="flex min-w-0 flex-col">
-						<h2 class="mb-1 text-sm font-medium">Preview</h2>
+						<h2 class="mb-1 text-sm font-medium">{ i18n.T(ctx, "editor.preview") }</h2>
 						<div
 							id="preview"
 							aria-live="polite"
@@ -85,15 +99,16 @@ templ Editor(p Page, e EditorData) {
 				</div>
 				<aside class="space-y-4">
 					@settings(e)
+					@translations(e)
 					@history(e)
 					if !e.IsNew() {
 						<button
 							type="submit"
 							formaction={ fmt.Sprintf("/admin/posts/%d/delete", e.Post.ID) }
 							formnovalidate
-							onclick="return confirm('Delete this permanently?')"
+							onclick={ confirmDelete(ctx) }
 							class="text-sm text-ink-400 underline underline-offset-2 hover:text-vermilion"
-						>Delete { e.Post.Type }</button>
+						>{ i18n.T(ctx, "editor.delete."+e.Post.Type) }</button>
 					}
 				</aside>
 			</div>
@@ -104,46 +119,68 @@ templ Editor(p Page, e EditorData) {
 templ settings(e EditorData) {
 	<div class="space-y-4 rounded-lg border border-ink-200 bg-white p-4">
 		<div>
-			<label class="block text-sm font-medium" for="slug">Slug</label>
+			<label class="block text-sm font-medium" for="slug">{ i18n.T(ctx, "editor.slug") }</label>
 			<input
 				id="slug"
 				name="slug"
 				value={ e.Post.Slug }
-				placeholder="derived from the title"
+				placeholder={ i18n.T(ctx, "editor.slug.help") }
 				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
 			/>
 		</div>
+		if e.IsNew() {
+			<div>
+				<label class="block text-sm font-medium" for="lang">{ i18n.T(ctx, "editor.lang") }</label>
+				<select
+					id="lang"
+					name="lang"
+					class="mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+				>
+					for _, l := range i18n.Available() {
+						<option value={ l.Code } selected?={ l.Code == e.Post.Lang }>{ l.Name }</option>
+					}
+				</select>
+				<p class="mt-1 text-xs text-ink-400">{ i18n.T(ctx, "editor.lang.help") }</p>
+			</div>
+		} else {
+			// Read-only once saved: changing it would orphan the post from its
+			// translation group. A different language is a different post.
+			<div>
+				<h3 class="text-sm font-medium">{ i18n.T(ctx, "editor.lang") }</h3>
+				<p class="mt-1 text-sm text-ink-600">{ langName(e.Post.Lang) }</p>
+			</div>
+		}
 		<div>
-			<label class="block text-sm font-medium" for="status">Status</label>
+			<label class="block text-sm font-medium" for="status">{ i18n.T(ctx, "editor.status") }</label>
 			<select
 				id="status"
 				name="status"
 				class="mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
 			>
-				<option value="draft" selected?={ e.Post.Status == "draft" }>Draft</option>
+				<option value="draft" selected?={ e.Post.Status == "draft" }>{ i18n.T(ctx, "posts.status.draft") }</option>
 				if e.CanPublish {
-					<option value="scheduled" selected?={ e.Post.Status == "scheduled" }>Scheduled</option>
-					<option value="published" selected?={ e.Post.Status == "published" }>Published</option>
+					<option value="scheduled" selected?={ e.Post.Status == "scheduled" }>{ i18n.T(ctx, "posts.status.scheduled") }</option>
+					<option value="published" selected?={ e.Post.Status == "published" }>{ i18n.T(ctx, "posts.status.published") }</option>
 				}
 			</select>
 			if !e.CanPublish {
-				<p class="mt-1 text-xs text-ink-400">Contributors save drafts; an editor publishes them.</p>
+				<p class="mt-1 text-xs text-ink-400">{ i18n.T(ctx, "editor.status.help") }</p>
 			}
 		</div>
 		<div>
-			<label class="block text-sm font-medium" for="visibility">Visibility</label>
+			<label class="block text-sm font-medium" for="visibility">{ i18n.T(ctx, "editor.visibility") }</label>
 			<select
 				id="visibility"
 				name="visibility"
 				class="mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
 			>
-				<option value="public" selected?={ e.Post.Visibility != "private" }>Public</option>
-				<option value="private" selected?={ e.Post.Visibility == "private" }>Private</option>
+				<option value="public" selected?={ e.Post.Visibility != "private" }>{ i18n.T(ctx, "editor.visibility.public") }</option>
+				<option value="private" selected?={ e.Post.Visibility == "private" }>{ i18n.T(ctx, "editor.visibility.private") }</option>
 			</select>
-			<p class="mt-1 text-xs text-ink-400">Private posts stay out of the Content API.</p>
+			<p class="mt-1 text-xs text-ink-400">{ i18n.T(ctx, "editor.visibility.help") }</p>
 		</div>
 		<div>
-			<label class="block text-sm font-medium" for="published_at">Publish date (UTC)</label>
+			<label class="block text-sm font-medium" for="published_at">{ i18n.T(ctx, "editor.publishDate") }</label>
 			<input
 				id="published_at"
 				name="published_at"
@@ -151,21 +188,21 @@ templ settings(e EditorData) {
 				value={ e.Schedule }
 				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
 			/>
-			<p class="mt-1 text-xs text-ink-400">Used when the status is Scheduled.</p>
+			<p class="mt-1 text-xs text-ink-400">{ i18n.T(ctx, "editor.publishDate.help") }</p>
 		</div>
 		<div>
-			<label class="block text-sm font-medium" for="tags">Tags</label>
+			<label class="block text-sm font-medium" for="tags">{ i18n.T(ctx, "editor.tags") }</label>
 			<input
 				id="tags"
 				name="tags"
 				value={ e.Tags }
-				placeholder="essays, tokyo"
+				placeholder={ i18n.T(ctx, "editor.tags.placeholder") }
 				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
 			/>
-			<p class="mt-1 text-xs text-ink-400">Comma separated. New ones are created.</p>
+			<p class="mt-1 text-xs text-ink-400">{ i18n.T(ctx, "editor.tags.help") }</p>
 		</div>
 		<div>
-			<label class="block text-sm font-medium" for="feature_image">Feature image URL</label>
+			<label class="block text-sm font-medium" for="feature_image">{ i18n.T(ctx, "editor.featureImage") }</label>
 			<input
 				id="feature_image"
 				name="feature_image"
@@ -175,28 +212,65 @@ templ settings(e EditorData) {
 			/>
 		</div>
 		<div>
-			<label class="block text-sm font-medium" for="excerpt">Excerpt</label>
+			<label class="block text-sm font-medium" for="excerpt">{ i18n.T(ctx, "editor.excerpt") }</label>
 			<textarea
 				id="excerpt"
 				name="excerpt"
 				rows="3"
-				placeholder="taken from the opening lines"
+				placeholder={ i18n.T(ctx, "editor.excerpt.placeholder") }
 				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
 			>{ e.Post.Excerpt }</textarea>
 		</div>
 	</div>
 }
 
+// translations lists every loaded language: the ones this post already exists
+// in link to their own editor, the rest offer to start one. The buttons submit
+// the surrounding form to /translate, so unsaved edits in the box are not
+// carried over - the translation copies what is stored.
+templ translations(e EditorData) {
+	if !e.IsNew() {
+		<section class="rounded-lg border border-ink-200 bg-white p-4">
+			<h2 class="mb-2 text-sm font-medium">{ i18n.T(ctx, "editor.translations") }</h2>
+			<ul class="space-y-1.5 text-sm">
+				for _, l := range i18n.Available() {
+					<li class="flex items-baseline justify-between gap-2">
+						<span class="min-w-0 truncate text-ink-600">{ l.Name }</span>
+						if t := e.Translation(l.Code); t == nil {
+							<button
+								type="submit"
+								name="lang"
+								value={ l.Code }
+								formaction={ fmt.Sprintf("/admin/posts/%d/translate", e.Post.ID) }
+								formnovalidate
+								class="shrink-0 text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion"
+							>{ i18n.T(ctx, "editor.translations.add") }</button>
+						} else if t.ID == e.Post.ID {
+							<span class="shrink-0 text-xs text-ink-400">{ i18n.T(ctx, "editor.translations.current") }</span>
+						} else {
+							<a
+								href={ templ.SafeURL(fmt.Sprintf("/admin/posts/%d", t.ID)) }
+								class="min-w-0 shrink truncate text-xs text-vermilion underline underline-offset-2"
+							>{ t.Title }</a>
+						}
+					</li>
+				}
+			</ul>
+			<p class="mt-2 text-xs text-ink-400">{ i18n.T(ctx, "editor.translations.help") }</p>
+		</section>
+	}
+}
+
 templ history(e EditorData) {
 	if len(e.Revisions) > 0 {
 		<section class="rounded-lg border border-ink-200 bg-white p-4">
-			<h2 class="mb-2 text-sm font-medium">History</h2>
+			<h2 class="mb-2 text-sm font-medium">{ i18n.T(ctx, "editor.history") }</h2>
 			<ul class="space-y-1.5 text-sm">
 				for _, rev := range e.Revisions {
 					<li class="flex items-baseline justify-between gap-2">
 						<span class="min-w-0 truncate text-ink-600">
 							<time datetime={ rev.CreatedAt.Format(time.RFC3339) }>
-								{ rev.CreatedAt.Format("2 Jan, 15:04") }
+								{ rev.CreatedAt.Format(i18n.T(ctx, "editor.history.dateFormat")) }
 							</time>
 							<span class="text-ink-400">{ rev.AuthorName }</span>
 						</span>
@@ -205,11 +279,11 @@ templ history(e EditorData) {
 							formaction={ fmt.Sprintf("/admin/posts/%d/restore/%d", e.Post.ID, rev.ID) }
 							formnovalidate
 							class="shrink-0 text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion"
-						>Restore</button>
+						>{ i18n.T(ctx, "editor.restore") }</button>
 					</li>
 				}
 			</ul>
-			<p class="mt-2 text-xs text-ink-400">Restoring keeps the current text as a revision.</p>
+			<p class="mt-2 text-xs text-ink-400">{ i18n.T(ctx, "editor.history.help") }</p>
 		</section>
 	}
 }

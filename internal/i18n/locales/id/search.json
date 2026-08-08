@@ -1,0 +1,12 @@
+{
+  "search.title": "Cari",
+  "search.submit": "Cari",
+  "search.label": "Cari tulisan",
+  "search.placeholder": "Judul atau isi tulisan",
+  "search.prompt": "Ketik sebuah kata untuk mencari tulisan dan halaman.",
+  "search.empty": "Tidak ada yang cocok dengan %s.",
+  "search.pagination": "Paginasi",
+  "search.pager": "Halaman %d dari %d",
+  "search.newer": "Lebih baru",
+  "search.older": "Lebih lama"
+}

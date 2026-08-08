@@ -1,0 +1,8 @@
+{
+  "login.title": "Sign in",
+  "login.email": "Email",
+  "login.password": "Password",
+  "login.submit": "Sign in",
+  "login.invalid": "Invalid email or password.",
+  "login.error": "Something went wrong. Try again."
+}

@@ -38,3 +38,8 @@ SELECT EXISTS (SELECT 1 FROM users WHERE email = ? COLLATE NOCASE);
 
 -- name: EmailExistsExcept :one
 SELECT EXISTS (SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND id <> ?);
+
+-- name: UpdateUserLocale :exec
+UPDATE users
+SET locale = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE id = ?;

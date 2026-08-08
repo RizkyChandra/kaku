@@ -113,6 +113,152 @@ func TestCreatePostDerivesSlugAndRendersHTML(t *testing.T) {
 	}
 }
 
+// A post is written in one language and belongs to a group of translations of
+// itself; two unrelated posts must never share that group.
+func TestCreatePostSetsLangAndItsOwnTranslationGroup(t *testing.T) {
+	h, q, router := newTest(t)
+	c := login(t, h, newUser(t, q, "writer@example.com", auth.RoleAuthor))
+
+	send(t, router, c, "/admin/posts", postForms("Hello World", "body"))
+	ja := postForms("Konnichiwa", "body")
+	ja.Set("lang", "ja")
+	send(t, router, c, "/admin/posts", ja)
+
+	first, err := q.GetPostBySlug(t.Context(), "hello-world")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := q.GetPostBySlug(t.Context(), "konnichiwa")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Lang != "en" {
+		t.Errorf("lang = %q, want the site default", first.Lang)
+	}
+	if second.Lang != "ja" {
+		t.Errorf("lang = %q, want the one the form asked for", second.Lang)
+	}
+	if first.TranslationGroup == "" || first.TranslationGroup == second.TranslationGroup {
+		t.Errorf("groups = %q and %q, want two non-empty groups", first.TranslationGroup, second.TranslationGroup)
+	}
+}
+
+// A language nobody loaded is a typo or a hand-crafted form, not an error.
+func TestCreatePostFallsBackForUnknownLang(t *testing.T) {
+	h, q, router := newTest(t)
+	c := login(t, h, newUser(t, q, "writer@example.com", auth.RoleAuthor))
+
+	f := postForms("Hello World", "body")
+	f.Set("lang", "klingon")
+	if w := send(t, router, c, "/admin/posts", f); w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303: %s", w.Code, w.Body)
+	}
+	p, err := q.GetPostBySlug(t.Context(), "hello-world")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Lang != "en" {
+		t.Errorf("lang = %q, want the fallback", p.Lang)
+	}
+}
+
+func TestTranslatePostCreatesDraftSiblingInTheSameGroup(t *testing.T) {
+	h, q, router := newTest(t)
+	c := login(t, h, newUser(t, q, "editor@example.com", auth.RoleEditor))
+
+	f := postForms("About", "body")
+	f.Set("status", "published")
+	send(t, router, c, "/admin/posts", f)
+	p, err := q.GetPostBySlug(t.Context(), "about")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := send(t, router, c, "/admin/posts/"+strconv.FormatInt(p.ID, 10)+"/translate", url.Values{"lang": {"ja"}})
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303: %s", w.Code, w.Body)
+	}
+	sib, err := q.GetTranslation(t.Context(), db.GetTranslationParams{
+		TranslationGroup: p.TranslationGroup, Lang: "ja",
+	})
+	if err != nil {
+		t.Fatalf("no sibling in the group: %v", err)
+	}
+	if sib.ID == p.ID {
+		t.Fatal("translate reused the source post")
+	}
+	if w.Header().Get("Location") != "/admin/posts/"+strconv.FormatInt(sib.ID, 10) {
+		t.Errorf("redirected to %q, want the new translation", w.Header().Get("Location"))
+	}
+	// A translation of a published post is untranslated text: it starts as a
+	// draft, with the source to work from and a slug of its own.
+	if sib.Status != "draft" {
+		t.Errorf("status = %q, want draft", sib.Status)
+	}
+	if sib.Markdown != p.Markdown || sib.Title != p.Title {
+		t.Errorf("translation did not copy the source: %q / %q", sib.Title, sib.Markdown)
+	}
+	if sib.Slug == p.Slug {
+		t.Errorf("slug %q collides with the source", sib.Slug)
+	}
+}
+
+// The button gets double-clicked; the second click must open the translation,
+// not make another one.
+func TestTranslatePostTwiceOpensTheExistingOne(t *testing.T) {
+	h, q, router := newTest(t)
+	c := login(t, h, newUser(t, q, "writer@example.com", auth.RoleAuthor))
+
+	send(t, router, c, "/admin/posts", postForms("About", "body"))
+	p, err := q.GetPostBySlug(t.Context(), "about")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "/admin/posts/" + strconv.FormatInt(p.ID, 10) + "/translate"
+
+	first := send(t, router, c, path, url.Values{"lang": {"id"}})
+	second := send(t, router, c, path, url.Values{"lang": {"id"}})
+	if second.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", second.Code)
+	}
+	if got, want := second.Header().Get("Location"), first.Header().Get("Location"); got != want {
+		t.Errorf("second submit went to %q, want %q", got, want)
+	}
+	n, err := q.CountPosts(t.Context(), "post")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Errorf("posts = %d, want the original and one translation", n)
+	}
+}
+
+// Creating a translation is creating a post, so the edit rules apply.
+func TestContributorCannotTranslateSomeoneElsesPost(t *testing.T) {
+	h, q, router := newTest(t)
+	owner := newUser(t, q, "editor@example.com", auth.RoleEditor)
+	contributor := newUser(t, q, "helper@example.com", auth.RoleContributor)
+
+	send(t, router, login(t, h, owner), "/admin/posts", postForms("Editor's Draft", "body"))
+	p, err := q.GetPostBySlug(t.Context(), "editors-draft")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := send(t, router, login(t, h, contributor),
+		"/admin/posts/"+strconv.FormatInt(p.ID, 10)+"/translate", url.Values{"lang": {"ja"}})
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", w.Code)
+	}
+	rows, err := q.ListTranslations(t.Context(), p.TranslationGroup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Errorf("group holds %d posts, want only the original", len(rows))
+	}
+}
+
 // The list, the empty editor and the editor for a saved post all render.
 func TestScreensRender(t *testing.T) {
 	h, q, router := newTest(t)
@@ -134,6 +280,37 @@ func TestScreensRender(t *testing.T) {
 		router.ServeHTTP(w, r)
 		if w.Code != http.StatusOK {
 			t.Errorf("GET %s: status = %d", path, w.Code)
+		}
+	}
+}
+
+// ?lang= is enough to switch language, so the screens can be checked without a
+// stored preference.
+func TestPostScreensRenderInJapanese(t *testing.T) {
+	h, q, router := newTest(t)
+	c := login(t, h, newUser(t, q, "writer@example.com", auth.RoleAuthor))
+
+	send(t, router, c, "/admin/posts", postForms("Hello World", "body"))
+	p, err := q.GetPostBySlug(t.Context(), "hello-world")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strconv.FormatInt(p.ID, 10)
+
+	for path, want := range map[string]string{
+		"/admin/posts?lang=ja":            "タイトル",       // posts.col.title
+		"/admin/posts/new?lang=ja":        "スラッグ",       // editor.slug
+		"/admin/posts/" + id + "?lang=ja": "完全に削除しますか？", // posts.confirmDelete, inside the onclick
+	} {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		r.AddCookie(c)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s: status = %d", path, w.Code)
+		}
+		if !strings.Contains(w.Body.String(), want) {
+			t.Errorf("GET %s: body does not contain %q", path, want)
 		}
 	}
 }

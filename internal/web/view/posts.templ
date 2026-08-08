@@ -1,10 +1,13 @@
 package view
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/RizkyChandra/kaku/internal/i18n"
 )
 
 // PostRow is one line of the list. sqlc generates a separate row type per
@@ -14,8 +17,18 @@ type PostRow struct {
 	Title  string
 	Slug   string
 	Status string
+	Lang   string
 	Author string
 	At     time.Time
+}
+
+// langName writes a language code in its own language, falling back to the raw
+// code for a post in a language that is no longer loaded.
+func langName(code string) string {
+	if l := i18n.Get(code); l != nil {
+		return l.Name
+	}
+	return code
 }
 
 // PostList is a page of posts or pages, filtered by status.
@@ -56,11 +69,20 @@ func (l PostList) Href(status string, n int) string {
 	return l.Base() + "?" + v.Encode()
 }
 
+// Label is a message key; the text is resolved per request from the context.
 var statusFilters = []struct{ Key, Label string }{
-	{"", "All"},
-	{"draft", "Drafts"},
-	{"scheduled", "Scheduled"},
-	{"published", "Published"},
+	{"", "posts.filter.all"},
+	{"draft", "posts.filter.draft"},
+	{"scheduled", "posts.filter.scheduled"},
+	{"published", "posts.filter.published"},
+}
+
+// confirmDelete is the delete buttons' onclick, here and in the editor. The
+// message is translated, so it is JSON-encoded rather than pasted straight into
+// the JavaScript string literal.
+func confirmDelete(ctx context.Context) templ.ComponentScript {
+	msg, _ := templ.JSONString(i18n.T(ctx, "posts.confirmDelete"))
+	return templ.JSUnsafeFuncCall("return confirm(" + msg + ")")
 }
 
 templ Posts(p Page, l PostList) {
@@ -69,38 +91,39 @@ templ Posts(p Page, l PostList) {
 			<a
 				href={ templ.SafeURL(l.NewHref()) }
 				class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark"
-			>New { l.Type }</a>
+			>{ i18n.T(ctx, "posts.new."+l.Type) }</a>
 		}
-		<nav class="mb-4 flex flex-wrap gap-1" aria-label="Filter by status">
+		<nav class="mb-4 flex flex-wrap gap-1" aria-label={ i18n.T(ctx, "posts.filter.aria") }>
 			for _, f := range statusFilters {
 				if f.Key == l.Status {
 					<a
 						href={ templ.SafeURL(l.Href(f.Key, 1)) }
 						aria-current="page"
 						class="rounded-md bg-ink-100 px-3 py-1.5 text-sm font-medium"
-					>{ f.Label }</a>
+					>{ i18n.T(ctx, f.Label) }</a>
 				} else {
 					<a
 						href={ templ.SafeURL(l.Href(f.Key, 1)) }
 						class="rounded-md px-3 py-1.5 text-sm text-ink-600 hover:bg-ink-100 hover:text-ink-900"
-					>{ f.Label }</a>
+					>{ i18n.T(ctx, f.Label) }</a>
 				}
 			}
 		</nav>
 		if len(l.Rows) == 0 {
 			<p class="rounded-lg border border-ink-200 bg-white p-8 text-ink-600">
-				Nothing here yet. <a href={ templ.SafeURL(l.NewHref()) } class="text-vermilion underline underline-offset-2">Write one</a>.
+				{ i18n.T(ctx, "posts.empty") } <a href={ templ.SafeURL(l.NewHref()) } class="text-vermilion underline underline-offset-2">{ i18n.T(ctx, "posts.write") }</a>
 			</p>
 		} else {
 			<div class="overflow-x-auto rounded-lg border border-ink-200 bg-white">
 				<table class="w-full text-left text-sm">
 					<thead class="border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400">
 						<tr>
-							<th scope="col" class="px-4 py-3 font-medium">Title</th>
-							<th scope="col" class="px-4 py-3 font-medium">Status</th>
-							<th scope="col" class="px-4 py-3 font-medium">Author</th>
-							<th scope="col" class="px-4 py-3 font-medium">Date</th>
-							<th scope="col" class="px-4 py-3"><span class="sr-only">Actions</span></th>
+							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.title") }</th>
+							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.status") }</th>
+							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.lang") }</th>
+							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.author") }</th>
+							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.date") }</th>
+							<th scope="col" class="px-4 py-3"><span class="sr-only">{ i18n.T(ctx, "posts.col.actions") }</span></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -116,17 +139,18 @@ templ Posts(p Page, l PostList) {
 								<td class="px-4 py-3">
 									@statusBadge(row.Status)
 								</td>
+								<td class="px-4 py-3 text-ink-600">{ langName(row.Lang) }</td>
 								<td class="px-4 py-3 text-ink-600">{ row.Author }</td>
 								<td class="px-4 py-3 text-ink-600">
-									<time datetime={ row.At.Format(time.RFC3339) }>{ row.At.Format("2 Jan 2006") }</time>
+									<time datetime={ row.At.Format(time.RFC3339) }>{ row.At.Format(i18n.From(ctx).DateFormat) }</time>
 								</td>
 								<td class="px-4 py-3 text-right">
 									<form method="post" action={ templ.SafeURL(fmt.Sprintf("/admin/posts/%d/delete", row.ID)) }>
 										<button
 											type="submit"
 											class="text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion"
-											onclick="return confirm('Delete this permanently?')"
-										>Delete</button>
+											onclick={ confirmDelete(ctx) }
+										>{ i18n.T(ctx, "posts.delete") }</button>
 									</form>
 								</td>
 							</tr>
@@ -142,25 +166,25 @@ templ Posts(p Page, l PostList) {
 templ statusBadge(status string) {
 	switch status {
 		case "published":
-			<span class="rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-800">Published</span>
+			<span class="rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-800">{ i18n.T(ctx, "posts.status.published") }</span>
 		case "scheduled":
-			<span class="rounded-full bg-vermilion/10 px-2 py-0.5 text-xs font-medium text-vermilion-dark">Scheduled</span>
+			<span class="rounded-full bg-vermilion/10 px-2 py-0.5 text-xs font-medium text-vermilion-dark">{ i18n.T(ctx, "posts.status.scheduled") }</span>
 		default:
-			<span class="rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600">Draft</span>
+			<span class="rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600">{ i18n.T(ctx, "posts.status.draft") }</span>
 	}
 }
 
 templ pager(l PostList) {
 	if l.Pages > 1 {
-		<nav class="mt-4 flex items-center justify-between text-sm" aria-label="Pagination">
+		<nav class="mt-4 flex items-center justify-between text-sm" aria-label={ i18n.T(ctx, "posts.pager.aria") }>
 			if l.Page > 1 {
-				<a href={ templ.SafeURL(l.Href(l.Status, l.Page-1)) } class="text-ink-600 hover:text-vermilion">← Newer</a>
+				<a href={ templ.SafeURL(l.Href(l.Status, l.Page-1)) } class="text-ink-600 hover:text-vermilion">{ i18n.T(ctx, "posts.pager.newer") }</a>
 			} else {
 				<span></span>
 			}
-			<span class="text-ink-400">Page { strconv.Itoa(l.Page) } of { strconv.Itoa(l.Pages) }</span>
+			<span class="text-ink-400">{ i18n.T(ctx, "posts.pager.page", l.Page, l.Pages) }</span>
 			if l.Page < l.Pages {
-				<a href={ templ.SafeURL(l.Href(l.Status, l.Page+1)) } class="text-ink-600 hover:text-vermilion">Older →</a>
+				<a href={ templ.SafeURL(l.Href(l.Status, l.Page+1)) } class="text-ink-600 hover:text-vermilion">{ i18n.T(ctx, "posts.pager.older") }</a>
 			} else {
 				<span></span>
 			}

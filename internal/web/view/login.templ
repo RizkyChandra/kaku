@@ -1,11 +1,13 @@
 package view
 
+import "github.com/RizkyChandra/kaku/internal/i18n"
+
 // Login is the only page served without a session, so it does not use Shell.
 templ Login(next, errMsg string) {
 	<!DOCTYPE html>
-	<html lang="en" class="h-full">
+	<html lang={ i18n.From(ctx).Code } class="h-full">
 		<head>
-			@head("Sign in")
+			@head(i18n.T(ctx, "login.title"))
 		</head>
 		<body class="flex h-full items-center justify-center bg-ink-50 px-4 text-ink-900 font-sans antialiased">
 			<main class="w-full max-w-sm">
@@ -18,7 +20,7 @@ templ Login(next, errMsg string) {
 					if errMsg != "" {
 						<p class="mb-4 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ errMsg }</p>
 					}
-					<label class="block text-sm font-medium" for="email">Email</label>
+					<label class="block text-sm font-medium" for="email">{ i18n.T(ctx, "login.email") }</label>
 					<input
 						id="email"
 						name="email"
@@ -28,7 +30,7 @@ templ Login(next, errMsg string) {
 						autofocus
 						class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"
 					/>
-					<label class="block text-sm font-medium" for="password">Password</label>
+					<label class="block text-sm font-medium" for="password">{ i18n.T(ctx, "login.password") }</label>
 					<input
 						id="password"
 						name="password"
@@ -38,7 +40,7 @@ templ Login(next, errMsg string) {
 						class="mt-1 mb-6 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"
 					/>
 					<button type="submit" class="w-full rounded-md bg-vermilion px-3 py-2 font-medium text-white hover:bg-vermilion-dark">
-						Sign in
+						{ i18n.T(ctx, "login.submit") }
 					</button>
 				</form>
 			</main>

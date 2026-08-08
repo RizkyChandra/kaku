@@ -51,6 +51,7 @@ func settingHarness(t *testing.T, role string) (http.Handler, *db.Queries, *http
 // settingForm is a valid submission; overrides replace single fields.
 func settingForm(overrides map[string]string) url.Values {
 	v := url.Values{
+		"language":           {"en"},
 		"site_title":         {"Example"},
 		"site_description":   {"A test site"},
 		"site_url":           {"https://example.com"},
@@ -91,6 +92,29 @@ func TestSettingDefaultsRender(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q", want)
 		}
+	}
+}
+
+// Field labels and help text live in Go, so they need their own proof that the
+// screen is translated and not just the chrome around it.
+func TestSettingRendersJapanese(t *testing.T) {
+	r, _, c := settingHarness(t, auth.RoleOwner)
+
+	req := httptest.NewRequest(http.MethodGet, "/settings", nil)
+	req.AddCookie(c)
+	req.Header.Set("Accept-Language", "ja")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	body := w.Body.String()
+	for _, want := range []string{"管理画面の言語", "タイムゾーン", "設定を保存", "待ち受けアドレス"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("Japanese settings page missing %q", want)
+		}
+	}
+	// Stored values must survive translation, or a save writes a translated word.
+	if !strings.Contains(body, `value="UTC"`) || !strings.Contains(body, `<option value="public"`) {
+		t.Error("a stored value was translated away")
 	}
 }
 

@@ -30,21 +30,23 @@ type Medium struct {
 }
 
 type Post struct {
-	ID           int64      `json:"id"`
-	Uuid         string     `json:"uuid"`
-	Type         string     `json:"type"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Markdown     string     `json:"markdown"`
-	Html         string     `json:"html"`
-	Excerpt      string     `json:"excerpt"`
-	FeatureImage string     `json:"feature_image"`
-	Status       string     `json:"status"`
-	Visibility   string     `json:"visibility"`
-	AuthorID     int64      `json:"author_id"`
-	PublishedAt  *time.Time `json:"published_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID               int64      `json:"id"`
+	Uuid             string     `json:"uuid"`
+	Type             string     `json:"type"`
+	Title            string     `json:"title"`
+	Slug             string     `json:"slug"`
+	Markdown         string     `json:"markdown"`
+	Html             string     `json:"html"`
+	Excerpt          string     `json:"excerpt"`
+	FeatureImage     string     `json:"feature_image"`
+	Status           string     `json:"status"`
+	Visibility       string     `json:"visibility"`
+	AuthorID         int64      `json:"author_id"`
+	PublishedAt      *time.Time `json:"published_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Lang             string     `json:"lang"`
+	TranslationGroup string     `json:"translation_group"`
 }
 
 type PostRevision struct {
@@ -88,6 +90,13 @@ type Tag struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type TagTranslation struct {
+	TagID       int64  `json:"tag_id"`
+	Lang        string `json:"lang"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 type User struct {
 	ID           int64     `json:"id"`
 	Email        string    `json:"email"`
@@ -98,4 +107,5 @@ type User struct {
 	ImageUrl     string    `json:"image_url"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	Locale       string    `json:"locale"`
 }

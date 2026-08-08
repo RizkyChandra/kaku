@@ -1,0 +1,20 @@
+{
+  "keys.title": "Content API キー",
+  "keys.introBefore": "読者は",
+  "keys.introAfter": "で認証します。",
+  "keys.warning": "このキーを今すぐコピーしてください。二度と表示されません。",
+  "keys.nameLabel": "キー名",
+  "keys.namePlaceholder": "キー名（例：マーケティングサイト）",
+  "keys.create": "キーを作成",
+  "keys.empty": "まだキーがありません。Content API を読むにはキーを作成してください。",
+  "keys.name": "名前",
+  "keys.createdBy": "作成者",
+  "keys.created": "作成日",
+  "keys.lastUsed": "最終使用",
+  "keys.actions": "操作",
+  "keys.never": "未使用",
+  "keys.revoke": "失効",
+  "keys.confirmRevoke": "%s を失効させますか？このキーを使っているものはすべて直ちに動作しなくなります。",
+  "keys.errNameRequired": "キーの名前を入力してください。",
+  "keys.errCreate": "キーを作成できませんでした。もう一度お試しください。"
+}

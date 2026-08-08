@@ -13,6 +13,7 @@ import (
 
 	"github.com/RizkyChandra/kaku/internal/auth"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
 
@@ -60,7 +61,7 @@ func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, status int
 		userFail(w, r, "list users", err)
 		return
 	}
-	renderStatus(w, r, status, view.Users(h.page(r, "Staff", "users"), users, page, pages, errMsg))
+	renderStatus(w, r, status, view.Users(h.page(r, i18n.T(r.Context(), "users.title"), "users"), users, page, pages, errMsg))
 }
 
 // pageBounds reads ?page= and clamps it to the pages total rows actually fill,
@@ -74,7 +75,7 @@ func pageBounds(r *http.Request, total int64) (page, pages int) {
 
 func (h *Handler) userNew(w http.ResponseWriter, r *http.Request) {
 	actor, _ := auth.UserFrom(r.Context())
-	render(w, r, view.UserForm(h.page(r, "New staff member", "users"), view.UserFormData{
+	render(w, r, view.UserForm(h.page(r, i18n.T(r.Context(), "users.new"), "users"), view.UserFormData{
 		Target: db.User{Role: auth.RoleAuthor},
 		Roles:  userAssignable(actor.Role),
 	}))
@@ -94,13 +95,13 @@ func (h *Handler) userCreate(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case f.Target.Name == "":
-		f.Err = "Name is required."
+		f.Err = i18n.T(r.Context(), "users.err.name")
 	case f.Target.Email == "":
-		f.Err = "Email is required."
+		f.Err = i18n.T(r.Context(), "users.err.email")
 	case !slices.Contains(f.Roles, f.Target.Role):
-		f.Err = "You are not allowed to assign that role."
+		f.Err = i18n.T(r.Context(), "users.err.role")
 	case len(password) < 8:
-		f.Err = "Password must be at least 8 characters."
+		f.Err = i18n.T(r.Context(), "users.err.password")
 	default:
 		taken, err := h.q.EmailExists(r.Context(), f.Target.Email)
 		if err != nil {
@@ -108,12 +109,12 @@ func (h *Handler) userCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if taken {
-			f.Err = "That email already belongs to another account."
+			f.Err = i18n.T(r.Context(), "users.err.emailTaken")
 		}
 	}
 	if f.Err != "" {
 		renderStatus(w, r, http.StatusUnprocessableEntity,
-			view.UserForm(h.page(r, "New staff member", "users"), f))
+			view.UserForm(h.page(r, i18n.T(r.Context(), "users.new"), "users"), f))
 		return
 	}
 
@@ -161,11 +162,11 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case f.Target.Name == "":
-		f.Err = "Name is required."
+		f.Err = i18n.T(r.Context(), "users.err.name")
 	case f.Target.Email == "":
-		f.Err = "Email is required."
+		f.Err = i18n.T(r.Context(), "users.err.email")
 	case !slices.Contains(f.Roles, f.Target.Role):
-		f.Err = "You are not allowed to assign that role."
+		f.Err = i18n.T(r.Context(), "users.err.role")
 	default:
 		if target.Role == auth.RoleOwner && f.Target.Role != auth.RoleOwner {
 			last, err := h.lastOwner(r)
@@ -174,7 +175,7 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if last {
-				f.Err = "This is the last owner. Promote someone else to owner first."
+				f.Err = i18n.T(r.Context(), "users.err.lastOwnerDemote")
 				break
 			}
 		}
@@ -184,7 +185,7 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if taken {
-			f.Err = "That email already belongs to another account."
+			f.Err = i18n.T(r.Context(), "users.err.emailTaken")
 		}
 	}
 	if f.Err != "" {
@@ -214,9 +215,9 @@ func (h *Handler) userSetPassword(w http.ResponseWriter, r *http.Request) {
 	case target.ID == actor.ID:
 		// Changing your own password must prove you know the current one, and
 		// that flow lives on the profile page.
-		f.Err = "Change your own password from your profile."
+		f.Err = i18n.T(r.Context(), "users.err.ownPassword")
 	case len(password) < 8:
-		f.Err = "Password must be at least 8 characters."
+		f.Err = i18n.T(r.Context(), "users.err.password")
 	}
 	if f.Err != "" {
 		renderStatus(w, r, http.StatusUnprocessableEntity,
@@ -253,12 +254,12 @@ func (h *Handler) userDelete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if last {
-			h.renderUsers(w, r, http.StatusUnprocessableEntity, "This is the last owner and cannot be deleted.")
+			h.renderUsers(w, r, http.StatusUnprocessableEntity, i18n.T(r.Context(), "users.err.lastOwnerDelete"))
 			return
 		}
 	}
 	if target.ID == actor.ID {
-		h.renderUsers(w, r, http.StatusUnprocessableEntity, "You cannot delete your own account.")
+		h.renderUsers(w, r, http.StatusUnprocessableEntity, i18n.T(r.Context(), "users.err.deleteSelf"))
 		return
 	}
 
@@ -266,8 +267,7 @@ func (h *Handler) userDelete(w http.ResponseWriter, r *http.Request) {
 		// posts, media and api_keys reference users without a cascade, so an
 		// account with any of them cannot be removed until they are reassigned.
 		if strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
-			h.renderUsers(w, r, http.StatusConflict,
-				target.Name+" still owns posts, uploads or API keys. Reassign their posts first.")
+			h.renderUsers(w, r, http.StatusConflict, i18n.T(r.Context(), "users.err.hasContent", target.Name))
 			return
 		}
 		userFail(w, r, "delete user", err)
@@ -284,7 +284,7 @@ func (h *Handler) userDelete(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) profile(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
-	render(w, r, view.Profile(h.page(r, "Profile", ""), u, "", ""))
+	render(w, r, view.Profile(h.page(r, i18n.T(r.Context(), "users.profile.title"), ""), u, "", ""))
 }
 
 func (h *Handler) profileUpdate(w http.ResponseWriter, r *http.Request) {
@@ -295,7 +295,7 @@ func (h *Handler) profileUpdate(w http.ResponseWriter, r *http.Request) {
 	u.Bio = strings.TrimSpace(r.FormValue("bio"))
 	u.ImageUrl = strings.TrimSpace(r.FormValue("image_url"))
 	if u.Name == "" {
-		h.renderProfile(w, r, http.StatusUnprocessableEntity, u, "Name is required.", "")
+		h.renderProfile(w, r, http.StatusUnprocessableEntity, u, i18n.T(r.Context(), "users.err.name"), "")
 		return
 	}
 
@@ -306,7 +306,7 @@ func (h *Handler) profileUpdate(w http.ResponseWriter, r *http.Request) {
 		userFail(w, r, "update profile", err)
 		return
 	}
-	h.renderProfile(w, r, http.StatusOK, updated, "", "Profile saved.")
+	h.renderProfile(w, r, http.StatusOK, updated, "", i18n.T(r.Context(), "users.profile.saved"))
 }
 
 func (h *Handler) profilePassword(w http.ResponseWriter, r *http.Request) {
@@ -315,9 +315,9 @@ func (h *Handler) profilePassword(w http.ResponseWriter, r *http.Request) {
 	var errMsg string
 	switch {
 	case !auth.CheckPassword(u.PasswordHash, r.FormValue("current_password")):
-		errMsg = "That is not your current password."
+		errMsg = i18n.T(r.Context(), "users.err.currentPassword")
 	case len(password) < 8:
-		errMsg = "New password must be at least 8 characters."
+		errMsg = i18n.T(r.Context(), "users.err.newPassword")
 	}
 	if errMsg != "" {
 		h.renderProfile(w, r, http.StatusUnprocessableEntity, u, errMsg, "")
@@ -333,11 +333,11 @@ func (h *Handler) profilePassword(w http.ResponseWriter, r *http.Request) {
 		userFail(w, r, "update password", err)
 		return
 	}
-	h.renderProfile(w, r, http.StatusOK, u, "", "Password changed.")
+	h.renderProfile(w, r, http.StatusOK, u, "", i18n.T(r.Context(), "users.profile.passwordChanged"))
 }
 
 func (h *Handler) renderProfile(w http.ResponseWriter, r *http.Request, status int, u db.User, errMsg, okMsg string) {
-	p := h.page(r, "Profile", "")
+	p := h.page(r, i18n.T(r.Context(), "users.profile.title"), "")
 	p.User = &u // so the sidebar shows the name that was just saved
 	renderStatus(w, r, status, view.Profile(p, u, errMsg, okMsg))
 }

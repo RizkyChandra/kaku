@@ -14,6 +14,7 @@ import (
 	"github.com/RizkyChandra/kaku/internal/backup"
 	"github.com/RizkyChandra/kaku/internal/config"
 	"github.com/RizkyChandra/kaku/internal/db"
+	"github.com/RizkyChandra/kaku/internal/i18n"
 	"github.com/RizkyChandra/kaku/internal/media"
 	"github.com/RizkyChandra/kaku/internal/web/view"
 )
@@ -38,14 +39,17 @@ func New(q *db.Queries, a *auth.Service, m *media.Store, b *backup.Backup, cfg c
 func (h *Handler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Use(auth.SameOriginPOST)
+	r.Use(h.localise)
 
 	r.Get("/login", h.loginForm)
 	r.Post("/login", h.login)
 
 	r.Group(func(r chi.Router) {
 		r.Use(h.auth.RequireAuth)
+		r.Use(h.localiseUser)
 		r.Get("/", h.dashboard)
 		r.Post("/logout", h.logout)
+		r.Post("/language", h.setLanguage)
 
 		// Each feature registers its own routes from its own file.
 		h.mountPosts(r)
@@ -83,12 +87,12 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		return h.q.CountPostsByStatus(ctx, db.CountPostsByStatusParams{Type: "post", Status: "scheduled"})
 	})
 	d.Stats = []view.Stat{
-		{Label: "Posts", Count: posts, Href: "/admin/posts"},
-		{Label: "Pages", Count: pages, Href: "/admin/pages"},
-		{Label: "Drafts", Count: d.Drafts, Href: "/admin/posts?status=draft"},
-		{Label: "Tags", Count: count("tags", func() (int64, error) { return h.q.CountTags(ctx) }), Href: "/admin/tags"},
-		{Label: "Media", Count: count("media", func() (int64, error) { return h.q.CountMedia(ctx) }), Href: "/admin/media"},
-		{Label: "Staff", Count: count("users", func() (int64, error) { return h.q.CountUsers(ctx) }), Href: "/admin/users"},
+		{Label: "dashboard.posts", Count: posts, Href: "/admin/posts"},
+		{Label: "dashboard.pages", Count: pages, Href: "/admin/pages"},
+		{Label: "dashboard.drafts", Count: d.Drafts, Href: "/admin/posts?status=draft"},
+		{Label: "dashboard.tags", Count: count("tags", func() (int64, error) { return h.q.CountTags(ctx) }), Href: "/admin/tags"},
+		{Label: "dashboard.media", Count: count("media", func() (int64, error) { return h.q.CountMedia(ctx) }), Href: "/admin/media"},
+		{Label: "dashboard.staff", Count: count("users", func() (int64, error) { return h.q.CountUsers(ctx) }), Href: "/admin/users"},
 	}
 
 	if rows, err := h.q.ListPosts(ctx, db.ListPostsParams{Type: "post", Limit: 5, Offset: 0}); err != nil {
@@ -102,7 +106,56 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	render(w, r, view.Dashboard(h.page(r, "Dashboard", "dashboard"), d))
+	render(w, r, view.Dashboard(h.page(r, i18n.T(ctx, "dashboard.title"), "dashboard"), d))
+}
+
+// localise picks the request's language from what is knowable before the user
+// is: an explicit ?lang=, the browser's Accept-Language, then the site setting.
+// It runs outside RequireAuth so the login page is translated too.
+func (h *Handler) localise(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		loc := i18n.Negotiate(
+			r.URL.Query().Get("lang"),
+			r.Header.Get("Accept-Language"),
+			db.LoadSettings(r.Context(), h.q).Get("language"),
+		)
+		next.ServeHTTP(w, r.WithContext(i18n.WithLocale(r.Context(), loc)))
+	})
+}
+
+// localiseUser applies the signed-in user's own choice, which outranks the
+// browser and the site default. It has to be separate from localise and run
+// after RequireAuth, because that is the first point at which there is a user
+// on the context at all. Costs no extra query: an empty preference is the
+// common case and falls straight through.
+func (h *Handler) localiseUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if u, ok := auth.UserFrom(r.Context()); ok && u.Locale != "" {
+			if l := i18n.Get(u.Locale); l != nil {
+				r = r.WithContext(i18n.WithLocale(r.Context(), l))
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// setLanguage stores the choice against the user, so it survives across
+// browsers. An unknown code clears the preference back to the site default
+// rather than erroring.
+func (h *Handler) setLanguage(w http.ResponseWriter, r *http.Request) {
+	u, ok := auth.UserFrom(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	code := r.FormValue("lang")
+	if i18n.Get(code) == nil {
+		code = ""
+	}
+	if err := h.q.UpdateUserLocale(r.Context(), db.UpdateUserLocaleParams{Locale: code, ID: u.ID}); err != nil {
+		slog.ErrorContext(r.Context(), "set language", "err", err)
+	}
+	http.Redirect(w, r, safeNext(r.FormValue("next")), http.StatusSeeOther)
 }
 
 func (h *Handler) loginForm(w http.ResponseWriter, r *http.Request) {
@@ -156,6 +209,9 @@ func (h *Handler) page(r *http.Request, title, active string) view.Page {
 	if u, ok := auth.UserFrom(r.Context()); ok {
 		p.User = &u
 	}
+	p.Lang = i18n.From(r.Context()).Code
+	p.Locales = i18n.Available()
+	p.Path = r.URL.Path
 	return p
 }
 

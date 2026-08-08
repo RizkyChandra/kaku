@@ -1,0 +1,8 @@
+{
+  "login.title": "Masuk",
+  "login.email": "Surel",
+  "login.password": "Kata sandi",
+  "login.submit": "Masuk",
+  "login.invalid": "Surel atau kata sandi salah.",
+  "login.error": "Terjadi kesalahan. Coba lagi."
+}
