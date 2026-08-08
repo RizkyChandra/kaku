@@ -1,0 +1,6 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kaku">
+  <rect width="128" height="128" rx="24" fill="#F4F1EA"/>
+  <rect x="28" y="28" width="16" height="72" rx="8" fill="#1C1917"/>
+  <path d="M92 32 L62 64 L92 96" fill="none" stroke="#C8442E"
+        stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
