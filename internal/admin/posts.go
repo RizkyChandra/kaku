@@ -38,6 +38,7 @@ func (h *Handler) mountPosts(r chi.Router) {
 	r.Post("/posts", h.createPost)
 	r.Post("/posts/{id}", h.updatePost)
 	r.Post("/posts/{id}/delete", h.deletePost)
+	r.Post("/posts/{id}/translate", h.translatePost)
 	r.Post("/posts/{id}/restore/{revID}", h.restoreRevision)
 	r.Post("/preview", h.preview)
 }
@@ -69,7 +70,7 @@ func (h *Handler) listPosts(typ string) http.HandlerFunc {
 			}
 			for _, p := range list {
 				rows = append(rows, view.PostRow{
-					ID: p.ID, Title: p.Title, Slug: p.Slug, Status: p.Status,
+					ID: p.ID, Title: p.Title, Slug: p.Slug, Status: p.Status, Lang: p.Lang,
 					Author: p.AuthorName, At: listedAt(p.PublishedAt, p.UpdatedAt),
 				})
 			}
@@ -85,7 +86,7 @@ func (h *Handler) listPosts(typ string) http.HandlerFunc {
 			}
 			for _, p := range list {
 				rows = append(rows, view.PostRow{
-					ID: p.ID, Title: p.Title, Slug: p.Slug, Status: p.Status,
+					ID: p.ID, Title: p.Title, Slug: p.Slug, Status: p.Status, Lang: p.Lang,
 					Author: p.AuthorName, At: listedAt(p.PublishedAt, p.UpdatedAt),
 				})
 			}
@@ -104,9 +105,14 @@ func (h *Handler) listPosts(typ string) http.HandlerFunc {
 func (h *Handler) newPost(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
 	typ := postType(r.URL.Query().Get("type"))
-	vis := postVisibility(db.LoadSettings(r.Context(), h.q).Get("default_visibility"))
+	s := db.LoadSettings(r.Context(), h.q)
 	render(w, r, view.Editor(h.page(r, i18n.T(r.Context(), "posts.new."+typ), navKey(typ)), view.EditorData{
-		Post:       db.Post{Type: typ, Status: "draft", Visibility: vis},
+		Post: db.Post{
+			Type:       typ,
+			Status:     "draft",
+			Visibility: postVisibility(s.Get("default_visibility")),
+			Lang:       postLang("", s.Get("language")),
+		},
 		CanPublish: canPublish(u),
 	}))
 }
@@ -128,6 +134,7 @@ func (h *Handler) createPost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	u, _ := auth.UserFrom(ctx)
 	typ := postType(r.FormValue("type"))
+	lang := postLang(r.FormValue("lang"), db.LoadSettings(ctx, h.q).Get("language"))
 	f := readPostForm(r)
 
 	if f.Status != "draft" && !canPublish(u) {
@@ -135,7 +142,7 @@ func (h *Handler) createPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if key := f.validate(); key != "" {
-		h.editorError(w, r, db.Post{Type: typ}, f, u, i18n.T(ctx, key))
+		h.editorError(w, r, db.Post{Type: typ, Lang: lang}, f, u, i18n.T(ctx, key))
 		return
 	}
 	slug, err := content.UniqueSlug(ctx, f.slugBase(), h.q.PostSlugExists)
@@ -155,7 +162,10 @@ func (h *Handler) createPost(w http.ResponseWriter, r *http.Request) {
 		Status:       f.Status,
 		Visibility:   f.Visibility,
 		AuthorID:     u.ID,
-		PublishedAt:  f.publishedAt(nil),
+		Lang:         lang,
+		// A post starts as a group of one; translations join it later.
+		TranslationGroup: uuid.NewString(),
+		PublishedAt:      f.publishedAt(nil),
 	})
 	if err != nil {
 		h.fail(w, r, fmt.Errorf("create post: %w", err))
@@ -270,6 +280,61 @@ func (h *Handler) deletePost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/"+navKey(p.Type), http.StatusSeeOther)
 }
 
+// translatePost starts a sibling post in another language: same
+// translation_group, the source text to work from, always a draft. Creating a
+// translation is creating a post, so it goes through the same edit permission
+// check as everything else on this post.
+func (h *Handler) translatePost(w http.ResponseWriter, r *http.Request) {
+	p, u, ok := h.editable(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	lang := postLang(r.FormValue("lang"), db.LoadSettings(ctx, h.q).Get("language"))
+
+	// This button gets double-clicked. A language the group already has is
+	// opened rather than duplicated.
+	switch sib, err := h.q.GetTranslation(ctx, db.GetTranslationParams{
+		TranslationGroup: p.TranslationGroup, Lang: lang,
+	}); {
+	case err == nil:
+		http.Redirect(w, r, fmt.Sprintf("/admin/posts/%d", sib.ID), http.StatusSeeOther)
+		return
+	case !errors.Is(err, sql.ErrNoRows):
+		h.fail(w, r, fmt.Errorf("get translation: %w", err))
+		return
+	}
+
+	// ponytail: slugs are unique across every language, so the Indonesian
+	// "About" lands on "about-2". Scoping uniqueness to (slug, lang) means
+	// rebuilding the table, which is not worth it until someone asks.
+	slug, err := content.UniqueSlug(ctx, p.Slug, h.q.PostSlugExists)
+	if err != nil {
+		h.fail(w, r, fmt.Errorf("unique slug: %w", err))
+		return
+	}
+	t, err := h.q.CreatePost(ctx, db.CreatePostParams{
+		Uuid:             uuid.NewString(),
+		Type:             p.Type,
+		Title:            p.Title,
+		Slug:             slug,
+		Markdown:         p.Markdown,
+		Html:             content.Render(p.Markdown),
+		Excerpt:          p.Excerpt,
+		FeatureImage:     p.FeatureImage,
+		Status:           "draft", // untranslated text must never go out published
+		Visibility:       p.Visibility,
+		AuthorID:         u.ID,
+		Lang:             lang,
+		TranslationGroup: p.TranslationGroup,
+	})
+	if err != nil {
+		h.fail(w, r, fmt.Errorf("create translation: %w", err))
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/admin/posts/%d", t.ID), http.StatusSeeOther)
+}
+
 // preview renders the editor's markdown as a fragment for the live pane. It
 // goes through content.Render, which sanitises, so the author's own input can
 // never execute here either.
@@ -378,12 +443,21 @@ func (h *Handler) editorData(ctx context.Context, p db.Post, u db.User) (view.Ed
 	if err != nil {
 		return view.EditorData{}, fmt.Errorf("list revisions: %w", err)
 	}
+	// An empty group is not a group: matching on it would list every post that
+	// somehow missed one.
+	var trs []db.ListTranslationsRow
+	if p.TranslationGroup != "" {
+		if trs, err = h.q.ListTranslations(ctx, p.TranslationGroup); err != nil {
+			return view.EditorData{}, fmt.Errorf("list translations: %w", err)
+		}
+	}
 	return view.EditorData{
-		Post:       p,
-		Tags:       strings.Join(names, ", "),
-		Revisions:  revs,
-		CanPublish: canPublish(u),
-		Schedule:   scheduleValue(p.PublishedAt),
+		Post:         p,
+		Tags:         strings.Join(names, ", "),
+		Revisions:    revs,
+		Translations: trs,
+		CanPublish:   canPublish(u),
+		Schedule:     scheduleValue(p.PublishedAt),
 	}, nil
 }
 
@@ -524,6 +598,20 @@ func postVisibility(v string) string {
 		return "private"
 	}
 	return "public"
+}
+
+// postLang normalises a post's language the way postStatus normalises status.
+// Valid means "loaded right now", so enabling a language is configuration —
+// there is no list here, and no CHECK constraint on the column, because adding
+// one must not need a migration or a release. siteDefault is the site's
+// language setting; English is the last resort.
+func postLang(v, siteDefault string) string {
+	for _, code := range []string{v, siteDefault, i18n.Fallback} {
+		if l := i18n.Get(code); l != nil {
+			return l.Code // canonical: "EN " and "en" store the same
+		}
+	}
+	return i18n.Fallback
 }
 
 // listStatus is the ?status= filter: "" means every status.

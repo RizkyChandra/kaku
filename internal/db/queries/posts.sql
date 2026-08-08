@@ -5,10 +5,10 @@
 -- name: CreatePost :one
 INSERT INTO posts (
     uuid, type, title, slug, markdown, html, excerpt, feature_image,
-    status, visibility, author_id, published_at
+    status, visibility, author_id, lang, translation_group, published_at
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?,
-    ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', sqlc.arg(published_at))
+    ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', sqlc.arg(published_at))
 )
 RETURNING *;
 
@@ -75,23 +75,28 @@ WHERE status = 'scheduled'
 
 -- Public Content API: published, public posts only.
 
+-- An empty lang means every language, which is what keeps the pre-1.0 API
+-- contract intact for callers that never pass one.
 -- name: ListPublishedPosts :many
 SELECT p.*, u.name AS author_name
 FROM posts p JOIN users u ON u.id = p.author_id
-WHERE p.type = ? AND p.status = 'published' AND p.visibility = 'public'
+WHERE p.type = sqlc.arg(type) AND p.status = 'published' AND p.visibility = 'public'
+  AND (sqlc.arg(lang) = '' OR p.lang = sqlc.arg(lang))
 ORDER BY p.published_at DESC
-LIMIT ? OFFSET ?;
+LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
 -- name: CountPublishedPosts :one
 SELECT count(*) FROM posts
-WHERE type = ? AND status = 'published' AND visibility = 'public';
+WHERE type = sqlc.arg(type) AND status = 'published' AND visibility = 'public'
+  AND (sqlc.arg(lang) = '' OR lang = sqlc.arg(lang));
 
 -- name: CountPublishedPostsByTag :one
 SELECT count(*)
 FROM posts p
 JOIN post_tags pt ON pt.post_id = p.id
 JOIN tags t ON t.id = pt.tag_id
-WHERE t.slug = ? AND p.status = 'published' AND p.visibility = 'public';
+WHERE t.slug = sqlc.arg(slug) AND p.status = 'published' AND p.visibility = 'public'
+  AND (sqlc.arg(lang) = '' OR p.lang = sqlc.arg(lang));
 
 -- name: GetPublishedPostBySlug :one
 SELECT p.*, u.name AS author_name
@@ -104,6 +109,7 @@ FROM posts p
 JOIN users u ON u.id = p.author_id
 JOIN post_tags pt ON pt.post_id = p.id
 JOIN tags t ON t.id = pt.tag_id
-WHERE t.slug = ? AND p.status = 'published' AND p.visibility = 'public'
+WHERE t.slug = sqlc.arg(slug) AND p.status = 'published' AND p.visibility = 'public'
+  AND (sqlc.arg(lang) = '' OR p.lang = sqlc.arg(lang))
 ORDER BY p.published_at DESC
-LIMIT ? OFFSET ?;
+LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);

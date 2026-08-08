@@ -113,7 +113,12 @@ type postJSON struct {
 	FeatureImage string     `json:"feature_image"`
 	PublishedAt  *time.Time `json:"published_at"`
 	Author       string     `json:"author"`
-	Tags         []tagJSON  `json:"tags"`
+	Lang         string     `json:"lang"`
+	// Translations maps a language to the slug of this post in it, so a reader
+	// can build a language switcher without a second request. It includes this
+	// post, so a monolingual site still gets one entry rather than null.
+	Translations map[string]string `json:"translations"`
+	Tags         []tagJSON         `json:"tags"`
 }
 
 type tagJSON struct {
@@ -136,12 +141,13 @@ func newMeta(page, limit, total int64) meta {
 func (h *Handler) listPosts(w http.ResponseWriter, r *http.Request) {
 	page, limit := h.paging(r)
 	tag := r.URL.Query().Get("tag")
+	lang := apiLang(r)
 	if tag == "" {
-		h.listByType(w, r, "post", "posts", page, limit)
+		h.listByType(w, r, "post", "posts", page, limit, lang)
 		return
 	}
 	rows, err := h.q.ListPublishedPostsByTag(r.Context(), db.ListPublishedPostsByTagParams{
-		Slug: tag, Limit: limit, Offset: (page - 1) * limit,
+		Slug: tag, Lang: lang, Lim: limit, Off: (page - 1) * limit,
 	})
 	if err != nil {
 		fail(w, r, "list posts by tag", err)
@@ -153,7 +159,7 @@ func (h *Handler) listPosts(w http.ResponseWriter, r *http.Request) {
 	for i, row := range rows {
 		posts[i] = db.ListPublishedPostsRow(row)
 	}
-	total, err := h.q.CountPublishedPostsByTag(r.Context(), tag)
+	total, err := h.q.CountPublishedPostsByTag(r.Context(), db.CountPublishedPostsByTagParams{Slug: tag, Lang: lang})
 	if err != nil {
 		fail(w, r, "count posts by tag", err)
 		return
@@ -163,18 +169,18 @@ func (h *Handler) listPosts(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) listPages(w http.ResponseWriter, r *http.Request) {
 	page, limit := h.paging(r)
-	h.listByType(w, r, "page", "pages", page, limit)
+	h.listByType(w, r, "page", "pages", page, limit, apiLang(r))
 }
 
-func (h *Handler) listByType(w http.ResponseWriter, r *http.Request, typ, key string, page, limit int64) {
+func (h *Handler) listByType(w http.ResponseWriter, r *http.Request, typ, key string, page, limit int64, lang string) {
 	rows, err := h.q.ListPublishedPosts(r.Context(), db.ListPublishedPostsParams{
-		Type: typ, Limit: limit, Offset: (page - 1) * limit,
+		Type: typ, Lang: lang, Lim: limit, Off: (page - 1) * limit,
 	})
 	if err != nil {
 		fail(w, r, "list published posts", err)
 		return
 	}
-	total, err := h.q.CountPublishedPosts(r.Context(), typ)
+	total, err := h.q.CountPublishedPosts(r.Context(), db.CountPublishedPostsParams{Type: typ, Lang: lang})
 	if err != nil {
 		fail(w, r, "count published posts", err)
 		return
@@ -246,15 +252,40 @@ func (h *Handler) post(ctx context.Context, row db.ListPublishedPostsRow) (postJ
 		FeatureImage: row.FeatureImage,
 		PublishedAt:  row.PublishedAt,
 		Author:       row.AuthorName,
+		Lang:         row.Lang,
+		Translations: map[string]string{},
 		Tags:         make([]tagJSON, 0, len(tags)),
 	}
 	for _, t := range tags {
 		p.Tags = append(p.Tags, tagJSON{Name: t.Name, Slug: t.Slug, Description: t.Description})
 	}
+
+	// Siblings, so a reader can offer a language switcher. Only published ones:
+	// this is the public API, and a draft translation must not leak through the
+	// back door of a sibling listing.
+	if row.TranslationGroup != "" {
+		sibs, err := h.q.ListTranslations(ctx, row.TranslationGroup)
+		if err != nil {
+			return postJSON{}, err
+		}
+		for _, s := range sibs {
+			if s.Status == "published" {
+				p.Translations[s.Lang] = s.Slug
+			}
+		}
+	}
 	return p, nil
 }
 
 // paging reads page and limit, falling back to the defaults on anything unusable.
+// apiLang reads ?lang=. An empty value means every language, which is what
+// keeps the pre-1.0 contract for callers that never pass one. An unknown code
+// is passed through and simply matches nothing, rather than being an error:
+// a typo should return an empty page, not a 400.
+func apiLang(r *http.Request) string {
+	return strings.ToLower(strings.TrimSpace(r.URL.Query().Get("lang")))
+}
+
 // paging honours ?limit= when given, otherwise the posts_per_page setting.
 // A client asking for more than maxLimit is capped rather than refused.
 func (h *Handler) paging(r *http.Request) (page, limit int64) {

@@ -10,11 +10,41 @@ import (
 )
 
 const countSearchPosts = `-- name: CountSearchPosts :one
-SELECT count(*) FROM posts_fts(?)
+SELECT count(*)
+FROM posts_fts(?1)
+JOIN posts p ON p.id = posts_fts.rowid
+WHERE (?2 = '' OR p.lang = ?2)
 `
 
-func (q *Queries) CountSearchPosts(ctx context.Context, postsFts interface{}) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countSearchPosts, postsFts)
+type CountSearchPostsParams struct {
+	Query interface{} `json:"query"`
+	Lang  interface{} `json:"lang"`
+}
+
+// Counts what SearchPosts lists. It joins posts only so the language filter can
+// apply here too: a filtered list with an unfiltered total pages off the end.
+func (q *Queries) CountSearchPosts(ctx context.Context, arg CountSearchPostsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSearchPosts, arg.Query, arg.Lang)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countSearchPostsShort = `-- name: CountSearchPostsShort :one
+SELECT count(*)
+FROM posts p
+WHERE (instr(lower(p.title), lower(?1)) > 0
+    OR instr(lower(p.markdown), lower(?1)) > 0)
+  AND (?2 = '' OR p.lang = ?2)
+`
+
+type CountSearchPostsShortParams struct {
+	Needle string      `json:"needle"`
+	Lang   interface{} `json:"lang"`
+}
+
+func (q *Queries) CountSearchPostsShort(ctx context.Context, arg CountSearchPostsShortParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSearchPostsShort, arg.Needle, arg.Lang)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -25,18 +55,20 @@ const searchPosts = `-- name: SearchPosts :many
 SELECT
     p.id, p.title, p.status, p.excerpt,
     u.name AS author_name,
-    snippet(posts_fts, 1, '[[hl]]', '[[/hl]]', '...', 24) AS snippet
-FROM posts_fts(?)
+    snippet(posts_fts, 1, '[[hl]]', '[[/hl]]', '...', 64) AS snippet
+FROM posts_fts(?1)
 JOIN posts p ON p.id = posts_fts.rowid
 JOIN users u ON u.id = p.author_id
+WHERE (?2 = '' OR p.lang = ?2)
 ORDER BY rank
-LIMIT ? OFFSET ?
+LIMIT ?4 OFFSET ?3
 `
 
 type SearchPostsParams struct {
-	PostsFts interface{} `json:"posts_fts"`
-	Limit    int64       `json:"limit"`
-	Offset   int64       `json:"offset"`
+	Query interface{} `json:"query"`
+	Lang  interface{} `json:"lang"`
+	Off   int64       `json:"off"`
+	Lim   int64       `json:"lim"`
 }
 
 type SearchPostsRow struct {
@@ -56,12 +88,24 @@ type SearchPostsRow struct {
 // table name on the left of MATCH as a column and rejects it. The two are the
 // same query to FTS5.
 //
+// An empty lang means every language, the same contract the content API uses.
+//
 // snippet() returns the matching text with the match wrapped in the delimiters
 // given here. Those delimiters are deliberately not HTML: the surrounding text
 // is post content and must be escaped before display, so the caller swaps the
 // markers for markup after escaping.
+//
+// The last argument counts tokens, and a trigram token advances one character,
+// so 64, the most FTS5 accepts, is a window of about 64 characters where the
+// same number meant 64 words under unicode61. Anything smaller cuts the match
+// off mid-sentence.
 func (q *Queries) SearchPosts(ctx context.Context, arg SearchPostsParams) ([]SearchPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, searchPosts, arg.PostsFts, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, searchPosts,
+		arg.Query,
+		arg.Lang,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +120,72 @@ func (q *Queries) SearchPosts(ctx context.Context, arg SearchPostsParams) ([]Sea
 			&i.Excerpt,
 			&i.AuthorName,
 			&i.Snippet,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchPostsShort = `-- name: SearchPostsShort :many
+SELECT p.id, p.title, p.status, p.excerpt, u.name AS author_name
+FROM posts p
+JOIN users u ON u.id = p.author_id
+WHERE (instr(lower(p.title), lower(?1)) > 0
+    OR instr(lower(p.markdown), lower(?1)) > 0)
+  AND (?2 = '' OR p.lang = ?2)
+ORDER BY p.id DESC
+LIMIT ?4 OFFSET ?3
+`
+
+type SearchPostsShortParams struct {
+	Needle string      `json:"needle"`
+	Lang   interface{} `json:"lang"`
+	Off    int64       `json:"off"`
+	Lim    int64       `json:"lim"`
+}
+
+type SearchPostsShortRow struct {
+	ID         int64  `json:"id"`
+	Title      string `json:"title"`
+	Status     string `json:"status"`
+	Excerpt    string `json:"excerpt"`
+	AuthorName string `json:"author_name"`
+}
+
+// Fallback for queries too short to make a trigram. instr() rather than LIKE:
+// the needle is what the user typed, and instr has no wildcards to escape.
+// lower() on both sides gives the case-insensitivity the tokenizer would have,
+// for ASCII at least, which is all SQLite's lower() knows.
+// ponytail: full table scan over markdown. Fine at CMS scale; if it ever hurts,
+// narrow it to title or add a second index tokenized for short queries.
+func (q *Queries) SearchPostsShort(ctx context.Context, arg SearchPostsShortParams) ([]SearchPostsShortRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchPostsShort,
+		arg.Needle,
+		arg.Lang,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchPostsShortRow{}
+	for rows.Next() {
+		var i SearchPostsShortRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Status,
+			&i.Excerpt,
+			&i.AuthorName,
 		); err != nil {
 			return nil, err
 		}

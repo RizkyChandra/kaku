@@ -101,8 +101,62 @@ func (h *Handler) tagUpdate(w http.ResponseWriter, r *http.Request) {
 		tagFail(w, r, fmt.Errorf("update tag %d: %w", t.ID, err))
 		return
 	}
+	if err := h.tagSaveTranslations(r, t.ID); err != nil {
+		tagFail(w, r, err)
+		return
+	}
+	if t.Trans, err = h.tagTranslations(r.Context(), t.ID); err != nil {
+		tagFail(w, r, err)
+		return
+	}
 	t.Name, t.Slug, t.Description = updated.Name, updated.Slug, updated.Description
+	t.Label = tagLabel(r.Context(), t.Name, t.Trans)
 	render(w, r, view.TagRow(t))
+}
+
+// tagSaveTranslations writes one row per loaded language. A blank name means
+// "not translated" and is deleted rather than stored: an empty string would win
+// the COALESCE in the labelled queries and render the tag nameless.
+func (h *Handler) tagSaveTranslations(r *http.Request, id int64) error {
+	for _, l := range i18n.Available() {
+		name := strings.TrimSpace(r.FormValue("name_" + l.Code))
+		if name == "" {
+			if err := h.q.DeleteTagTranslation(r.Context(), db.DeleteTagTranslationParams{TagID: id, Lang: l.Code}); err != nil {
+				return fmt.Errorf("delete tag %d translation %s: %w", id, l.Code, err)
+			}
+			continue
+		}
+		if err := h.q.SetTagTranslation(r.Context(), db.SetTagTranslationParams{
+			TagID:       id,
+			Lang:        l.Code,
+			Name:        name,
+			Description: strings.TrimSpace(r.FormValue("description_" + l.Code)),
+		}); err != nil {
+			return fmt.Errorf("set tag %d translation %s: %w", id, l.Code, err)
+		}
+	}
+	return nil
+}
+
+func (h *Handler) tagTranslations(ctx context.Context, id int64) (map[string]db.TagTranslation, error) {
+	list, err := h.q.ListTagTranslations(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("list tag %d translations: %w", id, err)
+	}
+	m := make(map[string]db.TagTranslation, len(list))
+	for _, t := range list {
+		m[t.Lang] = t
+	}
+	return m, nil
+}
+
+// tagLabel is what ListTagsLabelled's COALESCE does, for the single-tag paths
+// that do not go through it.
+func tagLabel(ctx context.Context, name string, trans map[string]db.TagTranslation) string {
+	if t, ok := trans[i18n.From(ctx).Code]; ok {
+		return t.Name
+	}
+	return name
 }
 
 func (h *Handler) tagDelete(w http.ResponseWriter, r *http.Request) {
@@ -127,12 +181,29 @@ func (h *Handler) tagPage(w http.ResponseWriter, r *http.Request, status int, er
 		return
 	}
 	page, pages := pageBounds(r, total)
-	tags, err := h.q.ListTags(r.Context(), db.ListTagsParams{Limit: perPage, Offset: int64((page - 1) * perPage)})
+	tags, err := h.q.ListTagsLabelled(r.Context(), db.ListTagsLabelledParams{
+		Lang:   i18n.From(r.Context()).Code,
+		Limit:  perPage,
+		Offset: int64((page - 1) * perPage),
+	})
 	if err != nil {
 		tagFail(w, r, fmt.Errorf("list tags: %w", err))
 		return
 	}
-	renderStatus(w, r, status, view.Tags(h.page(r, i18n.T(r.Context(), "tags.title"), "tags"), tags, page, pages, errMsg))
+	rows := make([]view.TagRowView, len(tags))
+	for i, t := range tags {
+		// The row shows which languages a tag still lacks, which ListTagsLabelled
+		// cannot say - it only resolves the one language being read.
+		// ponytail: a query per row, bounded by perPage on in-process SQLite; a
+		// second labelled query grouping every language would replace it.
+		trans, err := h.tagTranslations(r.Context(), t.ID)
+		if err != nil {
+			tagFail(w, r, err)
+			return
+		}
+		rows[i] = view.TagRowView{ListTagsLabelledRow: t, Trans: trans}
+	}
+	renderStatus(w, r, status, view.Tags(h.page(r, i18n.T(r.Context(), "tags.title"), "tags"), rows, page, pages, errMsg))
 }
 
 // tagLookup resolves the {id} route param, answering 404 itself when it cannot.
@@ -143,11 +214,11 @@ func (h *Handler) tagPage(w http.ResponseWriter, r *http.Request, status int, er
 // need except post_count, which no single-tag query carries and which nothing
 // here changes — so the row hands its count back in ?posts= rather than paying
 // for a count on every edit, cancel and save.
-func (h *Handler) tagLookup(w http.ResponseWriter, r *http.Request) (db.ListTagsRow, bool) {
+func (h *Handler) tagLookup(w http.ResponseWriter, r *http.Request) (view.TagRowView, bool) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		http.NotFound(w, r)
-		return db.ListTagsRow{}, false
+		return view.TagRowView{}, false
 	}
 	t, err := h.q.GetTag(r.Context(), id)
 	if err != nil {
@@ -156,12 +227,20 @@ func (h *Handler) tagLookup(w http.ResponseWriter, r *http.Request) (db.ListTags
 		} else {
 			tagFail(w, r, fmt.Errorf("get tag %d: %w", id, err))
 		}
-		return db.ListTagsRow{}, false
+		return view.TagRowView{}, false
+	}
+	trans, err := h.tagTranslations(r.Context(), id)
+	if err != nil {
+		tagFail(w, r, err)
+		return view.TagRowView{}, false
 	}
 	posts, _ := strconv.ParseInt(r.FormValue("posts"), 10, 64)
-	return db.ListTagsRow{
-		ID: t.ID, Name: t.Name, Slug: t.Slug, Description: t.Description,
-		CreatedAt: t.CreatedAt, PostCount: posts,
+	return view.TagRowView{
+		ListTagsLabelledRow: db.ListTagsLabelledRow{
+			ID: t.ID, Name: t.Name, Slug: t.Slug, Description: t.Description,
+			CreatedAt: t.CreatedAt, Label: tagLabel(r.Context(), t.Name, trans), PostCount: posts,
+		},
+		Trans: trans,
 	}, true
 }
 

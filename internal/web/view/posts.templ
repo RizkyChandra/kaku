@@ -17,8 +17,18 @@ type PostRow struct {
 	Title  string
 	Slug   string
 	Status string
+	Lang   string
 	Author string
 	At     time.Time
+}
+
+// langName writes a language code in its own language, falling back to the raw
+// code for a post in a language that is no longer loaded.
+func langName(code string) string {
+	if l := i18n.Get(code); l != nil {
+		return l.Name
+	}
+	return code
 }
 
 // PostList is a page of posts or pages, filtered by status.
@@ -110,6 +120,7 @@ templ Posts(p Page, l PostList) {
 						<tr>
 							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.title") }</th>
 							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.status") }</th>
+							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.lang") }</th>
 							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.author") }</th>
 							<th scope="col" class="px-4 py-3 font-medium">{ i18n.T(ctx, "posts.col.date") }</th>
 							<th scope="col" class="px-4 py-3"><span class="sr-only">{ i18n.T(ctx, "posts.col.actions") }</span></th>
@@ -128,6 +139,7 @@ templ Posts(p Page, l PostList) {
 								<td class="px-4 py-3">
 									@statusBadge(row.Status)
 								</td>
+								<td class="px-4 py-3 text-ink-600">{ langName(row.Lang) }</td>
 								<td class="px-4 py-3 text-ink-600">{ row.Author }</td>
 								<td class="px-4 py-3 text-ink-600">
 									<time datetime={ row.At.Format(time.RFC3339) }>{ row.At.Format(i18n.From(ctx).DateFormat) }</time>

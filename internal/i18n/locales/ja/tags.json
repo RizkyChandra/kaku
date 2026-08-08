@@ -13,5 +13,7 @@
   "tags.confirmDelete": "%s を削除しますか？このタグが付いた記事は、他のタグをそのまま保持します。",
   "tags.save": "タグを保存",
   "tags.cancel": "キャンセル",
-  "tags.errNameRequired": "タグには名前が必要です。"
+  "tags.errNameRequired": "タグには名前が必要です。",
+  "tags.translations": "翻訳",
+  "tags.translationsHelp": "言語ごとに名前を1つ。スラッグは全言語で共通なので、1つのタグがどの言語の記事も見つけます。空欄にすると、タグ本来の名前を使います。"
 }

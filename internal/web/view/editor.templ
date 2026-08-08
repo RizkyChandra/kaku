@@ -11,15 +11,28 @@ import (
 // EditorData is one post's form state. For a new post, Post is the zero value
 // with Type and Status filled in.
 type EditorData struct {
-	Post       db.Post
-	Tags       string // comma-separated tag names
-	Revisions  []db.ListRevisionsRow
-	CanPublish bool
-	Schedule   string // datetime-local value, UTC wall clock
-	Err        string
+	Post      db.Post
+	Tags      string // comma-separated tag names
+	Revisions []db.ListRevisionsRow
+	// Translations are the post's siblings, itself included.
+	Translations []db.ListTranslationsRow
+	CanPublish   bool
+	Schedule     string // datetime-local value, UTC wall clock
+	Err          string
 }
 
 func (e EditorData) IsNew() bool { return e.Post.ID == 0 }
+
+// Translation returns the sibling written in code, or nil. Linear over a
+// handful of languages.
+func (e EditorData) Translation(code string) *db.ListTranslationsRow {
+	for i := range e.Translations {
+		if e.Translations[i].Lang == code {
+			return &e.Translations[i]
+		}
+	}
+	return nil
+}
 
 func (e EditorData) Action() string {
 	if e.IsNew() {
@@ -86,6 +99,7 @@ templ Editor(p Page, e EditorData) {
 				</div>
 				<aside class="space-y-4">
 					@settings(e)
+					@translations(e)
 					@history(e)
 					if !e.IsNew() {
 						<button
@@ -114,6 +128,28 @@ templ settings(e EditorData) {
 				class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
 			/>
 		</div>
+		if e.IsNew() {
+			<div>
+				<label class="block text-sm font-medium" for="lang">{ i18n.T(ctx, "editor.lang") }</label>
+				<select
+					id="lang"
+					name="lang"
+					class="mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none"
+				>
+					for _, l := range i18n.Available() {
+						<option value={ l.Code } selected?={ l.Code == e.Post.Lang }>{ l.Name }</option>
+					}
+				</select>
+				<p class="mt-1 text-xs text-ink-400">{ i18n.T(ctx, "editor.lang.help") }</p>
+			</div>
+		} else {
+			// Read-only once saved: changing it would orphan the post from its
+			// translation group. A different language is a different post.
+			<div>
+				<h3 class="text-sm font-medium">{ i18n.T(ctx, "editor.lang") }</h3>
+				<p class="mt-1 text-sm text-ink-600">{ langName(e.Post.Lang) }</p>
+			</div>
+		}
 		<div>
 			<label class="block text-sm font-medium" for="status">{ i18n.T(ctx, "editor.status") }</label>
 			<select
@@ -186,6 +222,43 @@ templ settings(e EditorData) {
 			>{ e.Post.Excerpt }</textarea>
 		</div>
 	</div>
+}
+
+// translations lists every loaded language: the ones this post already exists
+// in link to their own editor, the rest offer to start one. The buttons submit
+// the surrounding form to /translate, so unsaved edits in the box are not
+// carried over - the translation copies what is stored.
+templ translations(e EditorData) {
+	if !e.IsNew() {
+		<section class="rounded-lg border border-ink-200 bg-white p-4">
+			<h2 class="mb-2 text-sm font-medium">{ i18n.T(ctx, "editor.translations") }</h2>
+			<ul class="space-y-1.5 text-sm">
+				for _, l := range i18n.Available() {
+					<li class="flex items-baseline justify-between gap-2">
+						<span class="min-w-0 truncate text-ink-600">{ l.Name }</span>
+						if t := e.Translation(l.Code); t == nil {
+							<button
+								type="submit"
+								name="lang"
+								value={ l.Code }
+								formaction={ fmt.Sprintf("/admin/posts/%d/translate", e.Post.ID) }
+								formnovalidate
+								class="shrink-0 text-xs text-ink-400 underline underline-offset-2 hover:text-vermilion"
+							>{ i18n.T(ctx, "editor.translations.add") }</button>
+						} else if t.ID == e.Post.ID {
+							<span class="shrink-0 text-xs text-ink-400">{ i18n.T(ctx, "editor.translations.current") }</span>
+						} else {
+							<a
+								href={ templ.SafeURL(fmt.Sprintf("/admin/posts/%d", t.ID)) }
+								class="min-w-0 shrink truncate text-xs text-vermilion underline underline-offset-2"
+							>{ t.Title }</a>
+						}
+					</li>
+				}
+			</ul>
+			<p class="mt-2 text-xs text-ink-400">{ i18n.T(ctx, "editor.translations.help") }</p>
+		</section>
+	}
 }
 
 templ history(e EditorData) {
