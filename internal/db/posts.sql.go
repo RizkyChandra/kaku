@@ -39,11 +39,17 @@ func (q *Queries) CountPostsByStatus(ctx context.Context, arg CountPostsByStatus
 
 const countPublishedPosts = `-- name: CountPublishedPosts :one
 SELECT count(*) FROM posts
-WHERE type = ? AND status = 'published' AND visibility = 'public'
+WHERE type = ?1 AND status = 'published' AND visibility = 'public'
+  AND (?2 = '' OR lang = ?2)
 `
 
-func (q *Queries) CountPublishedPosts(ctx context.Context, type_ string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countPublishedPosts, type_)
+type CountPublishedPostsParams struct {
+	Type string      `json:"type"`
+	Lang interface{} `json:"lang"`
+}
+
+func (q *Queries) CountPublishedPosts(ctx context.Context, arg CountPublishedPostsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPublishedPosts, arg.Type, arg.Lang)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -54,11 +60,17 @@ SELECT count(*)
 FROM posts p
 JOIN post_tags pt ON pt.post_id = p.id
 JOIN tags t ON t.id = pt.tag_id
-WHERE t.slug = ? AND p.status = 'published' AND p.visibility = 'public'
+WHERE t.slug = ?1 AND p.status = 'published' AND p.visibility = 'public'
+  AND (?2 = '' OR p.lang = ?2)
 `
 
-func (q *Queries) CountPublishedPostsByTag(ctx context.Context, slug string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countPublishedPostsByTag, slug)
+type CountPublishedPostsByTagParams struct {
+	Slug string      `json:"slug"`
+	Lang interface{} `json:"lang"`
+}
+
+func (q *Queries) CountPublishedPostsByTag(ctx context.Context, arg CountPublishedPostsByTagParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPublishedPostsByTag, arg.Slug, arg.Lang)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -68,27 +80,29 @@ const createPost = `-- name: CreatePost :one
 
 INSERT INTO posts (
     uuid, type, title, slug, markdown, html, excerpt, feature_image,
-    status, visibility, author_id, published_at
+    status, visibility, author_id, lang, translation_group, published_at
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?,
-    ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', ?12)
+    ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', ?14)
 )
-RETURNING id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at
+RETURNING id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at, lang, translation_group
 `
 
 type CreatePostParams struct {
-	Uuid         string      `json:"uuid"`
-	Type         string      `json:"type"`
-	Title        string      `json:"title"`
-	Slug         string      `json:"slug"`
-	Markdown     string      `json:"markdown"`
-	Html         string      `json:"html"`
-	Excerpt      string      `json:"excerpt"`
-	FeatureImage string      `json:"feature_image"`
-	Status       string      `json:"status"`
-	Visibility   string      `json:"visibility"`
-	AuthorID     int64       `json:"author_id"`
-	PublishedAt  interface{} `json:"published_at"`
+	Uuid             string      `json:"uuid"`
+	Type             string      `json:"type"`
+	Title            string      `json:"title"`
+	Slug             string      `json:"slug"`
+	Markdown         string      `json:"markdown"`
+	Html             string      `json:"html"`
+	Excerpt          string      `json:"excerpt"`
+	FeatureImage     string      `json:"feature_image"`
+	Status           string      `json:"status"`
+	Visibility       string      `json:"visibility"`
+	AuthorID         int64       `json:"author_id"`
+	Lang             string      `json:"lang"`
+	TranslationGroup string      `json:"translation_group"`
+	PublishedAt      interface{} `json:"published_at"`
 }
 
 // published_at is the only timestamp Go writes. It goes through strftime so the
@@ -107,6 +121,8 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 		arg.Status,
 		arg.Visibility,
 		arg.AuthorID,
+		arg.Lang,
+		arg.TranslationGroup,
 		arg.PublishedAt,
 	)
 	var i Post
@@ -126,6 +142,8 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Lang,
+		&i.TranslationGroup,
 	)
 	return i, err
 }
@@ -140,7 +158,7 @@ func (q *Queries) DeletePost(ctx context.Context, id int64) error {
 }
 
 const getPost = `-- name: GetPost :one
-SELECT id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at FROM posts WHERE id = ?
+SELECT id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at, lang, translation_group FROM posts WHERE id = ?
 `
 
 func (q *Queries) GetPost(ctx context.Context, id int64) (Post, error) {
@@ -162,12 +180,14 @@ func (q *Queries) GetPost(ctx context.Context, id int64) (Post, error) {
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Lang,
+		&i.TranslationGroup,
 	)
 	return i, err
 }
 
 const getPostBySlug = `-- name: GetPostBySlug :one
-SELECT id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at FROM posts WHERE slug = ?
+SELECT id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at, lang, translation_group FROM posts WHERE slug = ?
 `
 
 func (q *Queries) GetPostBySlug(ctx context.Context, slug string) (Post, error) {
@@ -189,33 +209,37 @@ func (q *Queries) GetPostBySlug(ctx context.Context, slug string) (Post, error) 
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Lang,
+		&i.TranslationGroup,
 	)
 	return i, err
 }
 
 const getPublishedPostBySlug = `-- name: GetPublishedPostBySlug :one
-SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, u.name AS author_name
+SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, p.lang, p.translation_group, u.name AS author_name
 FROM posts p JOIN users u ON u.id = p.author_id
 WHERE p.slug = ? AND p.status = 'published' AND p.visibility = 'public'
 `
 
 type GetPublishedPostBySlugRow struct {
-	ID           int64      `json:"id"`
-	Uuid         string     `json:"uuid"`
-	Type         string     `json:"type"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Markdown     string     `json:"markdown"`
-	Html         string     `json:"html"`
-	Excerpt      string     `json:"excerpt"`
-	FeatureImage string     `json:"feature_image"`
-	Status       string     `json:"status"`
-	Visibility   string     `json:"visibility"`
-	AuthorID     int64      `json:"author_id"`
-	PublishedAt  *time.Time `json:"published_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	AuthorName   string     `json:"author_name"`
+	ID               int64      `json:"id"`
+	Uuid             string     `json:"uuid"`
+	Type             string     `json:"type"`
+	Title            string     `json:"title"`
+	Slug             string     `json:"slug"`
+	Markdown         string     `json:"markdown"`
+	Html             string     `json:"html"`
+	Excerpt          string     `json:"excerpt"`
+	FeatureImage     string     `json:"feature_image"`
+	Status           string     `json:"status"`
+	Visibility       string     `json:"visibility"`
+	AuthorID         int64      `json:"author_id"`
+	PublishedAt      *time.Time `json:"published_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Lang             string     `json:"lang"`
+	TranslationGroup string     `json:"translation_group"`
+	AuthorName       string     `json:"author_name"`
 }
 
 func (q *Queries) GetPublishedPostBySlug(ctx context.Context, slug string) (GetPublishedPostBySlugRow, error) {
@@ -237,13 +261,15 @@ func (q *Queries) GetPublishedPostBySlug(ctx context.Context, slug string) (GetP
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Lang,
+		&i.TranslationGroup,
 		&i.AuthorName,
 	)
 	return i, err
 }
 
 const listPosts = `-- name: ListPosts :many
-SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, u.name AS author_name
+SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, p.lang, p.translation_group, u.name AS author_name
 FROM posts p JOIN users u ON u.id = p.author_id
 WHERE p.type = ?
 ORDER BY COALESCE(p.published_at, p.updated_at) DESC
@@ -257,22 +283,24 @@ type ListPostsParams struct {
 }
 
 type ListPostsRow struct {
-	ID           int64      `json:"id"`
-	Uuid         string     `json:"uuid"`
-	Type         string     `json:"type"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Markdown     string     `json:"markdown"`
-	Html         string     `json:"html"`
-	Excerpt      string     `json:"excerpt"`
-	FeatureImage string     `json:"feature_image"`
-	Status       string     `json:"status"`
-	Visibility   string     `json:"visibility"`
-	AuthorID     int64      `json:"author_id"`
-	PublishedAt  *time.Time `json:"published_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	AuthorName   string     `json:"author_name"`
+	ID               int64      `json:"id"`
+	Uuid             string     `json:"uuid"`
+	Type             string     `json:"type"`
+	Title            string     `json:"title"`
+	Slug             string     `json:"slug"`
+	Markdown         string     `json:"markdown"`
+	Html             string     `json:"html"`
+	Excerpt          string     `json:"excerpt"`
+	FeatureImage     string     `json:"feature_image"`
+	Status           string     `json:"status"`
+	Visibility       string     `json:"visibility"`
+	AuthorID         int64      `json:"author_id"`
+	PublishedAt      *time.Time `json:"published_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Lang             string     `json:"lang"`
+	TranslationGroup string     `json:"translation_group"`
+	AuthorName       string     `json:"author_name"`
 }
 
 func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPostsRow, error) {
@@ -300,6 +328,8 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 			&i.PublishedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Lang,
+			&i.TranslationGroup,
 			&i.AuthorName,
 		); err != nil {
 			return nil, err
@@ -316,7 +346,7 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 }
 
 const listPostsByStatus = `-- name: ListPostsByStatus :many
-SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, u.name AS author_name
+SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, p.lang, p.translation_group, u.name AS author_name
 FROM posts p JOIN users u ON u.id = p.author_id
 WHERE p.type = ? AND p.status = ?
 ORDER BY COALESCE(p.published_at, p.updated_at) DESC
@@ -331,22 +361,24 @@ type ListPostsByStatusParams struct {
 }
 
 type ListPostsByStatusRow struct {
-	ID           int64      `json:"id"`
-	Uuid         string     `json:"uuid"`
-	Type         string     `json:"type"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Markdown     string     `json:"markdown"`
-	Html         string     `json:"html"`
-	Excerpt      string     `json:"excerpt"`
-	FeatureImage string     `json:"feature_image"`
-	Status       string     `json:"status"`
-	Visibility   string     `json:"visibility"`
-	AuthorID     int64      `json:"author_id"`
-	PublishedAt  *time.Time `json:"published_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	AuthorName   string     `json:"author_name"`
+	ID               int64      `json:"id"`
+	Uuid             string     `json:"uuid"`
+	Type             string     `json:"type"`
+	Title            string     `json:"title"`
+	Slug             string     `json:"slug"`
+	Markdown         string     `json:"markdown"`
+	Html             string     `json:"html"`
+	Excerpt          string     `json:"excerpt"`
+	FeatureImage     string     `json:"feature_image"`
+	Status           string     `json:"status"`
+	Visibility       string     `json:"visibility"`
+	AuthorID         int64      `json:"author_id"`
+	PublishedAt      *time.Time `json:"published_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Lang             string     `json:"lang"`
+	TranslationGroup string     `json:"translation_group"`
+	AuthorName       string     `json:"author_name"`
 }
 
 func (q *Queries) ListPostsByStatus(ctx context.Context, arg ListPostsByStatusParams) ([]ListPostsByStatusRow, error) {
@@ -379,6 +411,8 @@ func (q *Queries) ListPostsByStatus(ctx context.Context, arg ListPostsByStatusPa
 			&i.PublishedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Lang,
+			&i.TranslationGroup,
 			&i.AuthorName,
 		); err != nil {
 			return nil, err
@@ -396,41 +430,52 @@ func (q *Queries) ListPostsByStatus(ctx context.Context, arg ListPostsByStatusPa
 
 const listPublishedPosts = `-- name: ListPublishedPosts :many
 
-SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, u.name AS author_name
+SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, p.lang, p.translation_group, u.name AS author_name
 FROM posts p JOIN users u ON u.id = p.author_id
-WHERE p.type = ? AND p.status = 'published' AND p.visibility = 'public'
+WHERE p.type = ?1 AND p.status = 'published' AND p.visibility = 'public'
+  AND (?2 = '' OR p.lang = ?2)
 ORDER BY p.published_at DESC
-LIMIT ? OFFSET ?
+LIMIT ?4 OFFSET ?3
 `
 
 type ListPublishedPostsParams struct {
-	Type   string `json:"type"`
-	Limit  int64  `json:"limit"`
-	Offset int64  `json:"offset"`
+	Type string      `json:"type"`
+	Lang interface{} `json:"lang"`
+	Off  int64       `json:"off"`
+	Lim  int64       `json:"lim"`
 }
 
 type ListPublishedPostsRow struct {
-	ID           int64      `json:"id"`
-	Uuid         string     `json:"uuid"`
-	Type         string     `json:"type"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Markdown     string     `json:"markdown"`
-	Html         string     `json:"html"`
-	Excerpt      string     `json:"excerpt"`
-	FeatureImage string     `json:"feature_image"`
-	Status       string     `json:"status"`
-	Visibility   string     `json:"visibility"`
-	AuthorID     int64      `json:"author_id"`
-	PublishedAt  *time.Time `json:"published_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	AuthorName   string     `json:"author_name"`
+	ID               int64      `json:"id"`
+	Uuid             string     `json:"uuid"`
+	Type             string     `json:"type"`
+	Title            string     `json:"title"`
+	Slug             string     `json:"slug"`
+	Markdown         string     `json:"markdown"`
+	Html             string     `json:"html"`
+	Excerpt          string     `json:"excerpt"`
+	FeatureImage     string     `json:"feature_image"`
+	Status           string     `json:"status"`
+	Visibility       string     `json:"visibility"`
+	AuthorID         int64      `json:"author_id"`
+	PublishedAt      *time.Time `json:"published_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Lang             string     `json:"lang"`
+	TranslationGroup string     `json:"translation_group"`
+	AuthorName       string     `json:"author_name"`
 }
 
 // Public Content API: published, public posts only.
+// An empty lang means every language, which is what keeps the pre-1.0 API
+// contract intact for callers that never pass one.
 func (q *Queries) ListPublishedPosts(ctx context.Context, arg ListPublishedPostsParams) ([]ListPublishedPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPublishedPosts, arg.Type, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listPublishedPosts,
+		arg.Type,
+		arg.Lang,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -454,6 +499,8 @@ func (q *Queries) ListPublishedPosts(ctx context.Context, arg ListPublishedPosts
 			&i.PublishedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Lang,
+			&i.TranslationGroup,
 			&i.AuthorName,
 		); err != nil {
 			return nil, err
@@ -470,43 +517,52 @@ func (q *Queries) ListPublishedPosts(ctx context.Context, arg ListPublishedPosts
 }
 
 const listPublishedPostsByTag = `-- name: ListPublishedPostsByTag :many
-SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, u.name AS author_name
+SELECT p.id, p.uuid, p.type, p.title, p.slug, p.markdown, p.html, p.excerpt, p.feature_image, p.status, p.visibility, p.author_id, p.published_at, p.created_at, p.updated_at, p.lang, p.translation_group, u.name AS author_name
 FROM posts p
 JOIN users u ON u.id = p.author_id
 JOIN post_tags pt ON pt.post_id = p.id
 JOIN tags t ON t.id = pt.tag_id
-WHERE t.slug = ? AND p.status = 'published' AND p.visibility = 'public'
+WHERE t.slug = ?1 AND p.status = 'published' AND p.visibility = 'public'
+  AND (?2 = '' OR p.lang = ?2)
 ORDER BY p.published_at DESC
-LIMIT ? OFFSET ?
+LIMIT ?4 OFFSET ?3
 `
 
 type ListPublishedPostsByTagParams struct {
-	Slug   string `json:"slug"`
-	Limit  int64  `json:"limit"`
-	Offset int64  `json:"offset"`
+	Slug string      `json:"slug"`
+	Lang interface{} `json:"lang"`
+	Off  int64       `json:"off"`
+	Lim  int64       `json:"lim"`
 }
 
 type ListPublishedPostsByTagRow struct {
-	ID           int64      `json:"id"`
-	Uuid         string     `json:"uuid"`
-	Type         string     `json:"type"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Markdown     string     `json:"markdown"`
-	Html         string     `json:"html"`
-	Excerpt      string     `json:"excerpt"`
-	FeatureImage string     `json:"feature_image"`
-	Status       string     `json:"status"`
-	Visibility   string     `json:"visibility"`
-	AuthorID     int64      `json:"author_id"`
-	PublishedAt  *time.Time `json:"published_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	AuthorName   string     `json:"author_name"`
+	ID               int64      `json:"id"`
+	Uuid             string     `json:"uuid"`
+	Type             string     `json:"type"`
+	Title            string     `json:"title"`
+	Slug             string     `json:"slug"`
+	Markdown         string     `json:"markdown"`
+	Html             string     `json:"html"`
+	Excerpt          string     `json:"excerpt"`
+	FeatureImage     string     `json:"feature_image"`
+	Status           string     `json:"status"`
+	Visibility       string     `json:"visibility"`
+	AuthorID         int64      `json:"author_id"`
+	PublishedAt      *time.Time `json:"published_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Lang             string     `json:"lang"`
+	TranslationGroup string     `json:"translation_group"`
+	AuthorName       string     `json:"author_name"`
 }
 
 func (q *Queries) ListPublishedPostsByTag(ctx context.Context, arg ListPublishedPostsByTagParams) ([]ListPublishedPostsByTagRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPublishedPostsByTag, arg.Slug, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listPublishedPostsByTag,
+		arg.Slug,
+		arg.Lang,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -530,6 +586,8 @@ func (q *Queries) ListPublishedPostsByTag(ctx context.Context, arg ListPublished
 			&i.PublishedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Lang,
+			&i.TranslationGroup,
 			&i.AuthorName,
 		); err != nil {
 			return nil, err
@@ -602,7 +660,7 @@ UPDATE posts SET
     published_at = strftime('%Y-%m-%dT%H:%M:%fZ', ?9),
     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 WHERE id = ?10
-RETURNING id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at
+RETURNING id, uuid, type, title, slug, markdown, html, excerpt, feature_image, status, visibility, author_id, published_at, created_at, updated_at, lang, translation_group
 `
 
 type UpdatePostParams struct {
@@ -651,6 +709,8 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, e
 		&i.PublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Lang,
+		&i.TranslationGroup,
 	)
 	return i, err
 }

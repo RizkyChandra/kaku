@@ -13,9 +13,13 @@ import (
 )
 
 // searchPost writes a post straight to the database: search must find what is
-// stored, whatever route put it there.
-func searchPost(t *testing.T, q *db.Queries, author db.User, title, markdown string) db.Post {
+// stored, whatever route put it there. lang is optional and defaults to "en".
+func searchPost(t *testing.T, q *db.Queries, author db.User, title, markdown string, lang ...string) db.Post {
 	t.Helper()
+	l := "en"
+	if len(lang) > 0 {
+		l = lang[0]
+	}
 	p, err := q.CreatePost(t.Context(), db.CreatePostParams{
 		Uuid:       title, // unique enough for a test
 		Type:       "post",
@@ -25,6 +29,7 @@ func searchPost(t *testing.T, q *db.Queries, author db.User, title, markdown str
 		Status:     "draft",
 		Visibility: "public",
 		AuthorID:   author.ID,
+		Lang:       l,
 	})
 	if err != nil {
 		t.Fatalf("create post: %v", err)
@@ -205,6 +210,78 @@ func TestSearchEscapesSnippetHTML(t *testing.T) {
 		if !strings.Contains(body, "aardvark</mark>") {
 			t.Errorf("htmx=%v: escaping lost the highlight: %s", htmx, body)
 		}
+	}
+}
+
+// Issue #31. unicode61 never split CJK, so the whole sentence was one token and
+// no word inside it was findable. This is the reason the index is trigrams.
+func TestSearchFindsJapaneseInsideASentence(t *testing.T) {
+	h, q, router := newTest(t)
+	u := newUser(t, q, "writer@example.com", auth.RoleAuthor)
+	c := login(t, h, u)
+	searchPost(t, q, u, "Nikki", "私は毎日書く")
+	searchPost(t, q, u, "Betsu", "今日は寒い")
+
+	for _, query := range []string{"書く", "毎日", "私は毎日"} {
+		body := searchFor(t, router, c, query, false).Body.String()
+		if !strings.Contains(body, "Nikki") {
+			t.Errorf("query %q did not find the post: %s", query, body)
+		}
+		if strings.Contains(body, "Betsu") {
+			t.Errorf("query %q matched an unrelated post", query)
+		}
+	}
+}
+
+// Under three characters there is no trigram to look up, so those queries take
+// the substring scan instead of silently returning nothing.
+func TestSearchShortQueryFallsBack(t *testing.T) {
+	h, q, router := newTest(t)
+	u := newUser(t, q, "writer@example.com", auth.RoleAuthor)
+	c := login(t, h, u)
+	searchPost(t, q, u, "Kyoto Notebook", "Ramen in a back alley.")
+	searchPost(t, q, u, "Unrelated Piece", "Nothing to see.")
+
+	// "yo" and "YO" are both inside "Kyoto": short queries stay case-blind too.
+	for _, query := range []string{"yo", "YO", "am"} {
+		body := searchFor(t, router, c, query, false).Body.String()
+		if !strings.Contains(body, "Kyoto Notebook") {
+			t.Errorf("short query %q found nothing: %s", query, body)
+		}
+	}
+	if body := searchFor(t, router, c, "zz", false).Body.String(); strings.Contains(body, "Kyoto Notebook") {
+		t.Errorf("short query matched a post it is not in: %s", body)
+	}
+}
+
+// The filter narrows the rows and the count together, or page 2 is a lie.
+func TestSearchFiltersByLanguage(t *testing.T) {
+	h, q, router := newTest(t)
+	u := newUser(t, q, "writer@example.com", auth.RoleAuthor)
+	c := login(t, h, u)
+	searchPost(t, q, u, "Wombat JA", "wombat sighting", "ja")
+	for i := 0; i < searchLimit; i++ {
+		searchPost(t, q, u, "Wombat "+strconv.Itoa(i), "wombat sighting")
+	}
+
+	all := searchGet(t, router, c, "/admin/search?q=wombat", true).Body.String()
+	if got := searchRows(all); got != searchLimit {
+		t.Fatalf("unfiltered page 1 has %d rows, want %d", got, searchLimit)
+	}
+	if !strings.Contains(all, "Page 1 of 2") {
+		t.Errorf("unfiltered pager should span 2 pages: %s", all)
+	}
+
+	ja := searchGet(t, router, c, "/admin/search?q=wombat&lang=ja", true).Body.String()
+	if got := searchRows(ja); got != 1 {
+		t.Errorf("lang=ja has %d rows, want 1: %s", got, ja)
+	}
+	if !strings.Contains(ja, "Wombat JA") {
+		t.Errorf("lang=ja lost the Japanese post: %s", ja)
+	}
+	// One row, so the pager must be gone entirely.
+	if strings.Contains(ja, "Page 1 of") {
+		t.Errorf("lang=ja kept the unfiltered total: %s", ja)
 	}
 }
 
