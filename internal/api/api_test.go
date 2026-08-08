@@ -17,6 +17,12 @@ const testKey = "TESTKEYTESTKEYTESTKEYTESTK"
 // post, one draft, one private post, one page and one tagged post.
 func newAPI(t *testing.T) http.Handler {
 	t.Helper()
+	h, _ := newAPIWithQueries(t)
+	return h
+}
+
+func newAPIWithQueries(t *testing.T) (http.Handler, *db.Queries) {
+	t.Helper()
 	ctx := context.Background()
 	sqlDB, err := db.Open(ctx, ":memory:")
 	if err != nil {
@@ -63,7 +69,7 @@ func newAPI(t *testing.T) http.Handler {
 	if err := q.AddPostTag(ctx, db.AddPostTagParams{PostID: tagged.ID, TagID: tag.ID}); err != nil {
 		t.Fatalf("tag post: %v", err)
 	}
-	return New(q).Router()
+	return New(q).Router(), q
 }
 
 func get(t *testing.T, h http.Handler, path, key string) *httptest.ResponseRecorder {
@@ -242,5 +248,67 @@ func TestPreflightNeedsNoKey(t *testing.T) {
 	}
 	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
 		t.Fatalf("missing CORS header: %v", w.Header())
+	}
+}
+
+// ?lang= narrows both the rows and meta.total; omitting it must keep returning
+// every language, which is the pre-1.0 contract.
+func TestAPILanguageFilter(t *testing.T) {
+	h, q := newAPIWithQueries(t)
+	ctx := t.Context()
+	u, err := q.GetUserByEmail(ctx, "writer@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ slug, lang, status string }{
+		{"halo", "id", "published"},
+		{"konnichiwa", "ja", "published"},
+		{"draft-ja", "ja", "draft"},
+	} {
+		if _, err := q.CreatePost(ctx, db.CreatePostParams{
+			Uuid: tc.slug, Type: "post", Title: tc.slug, Slug: tc.slug,
+			Html: "<p>x</p>", Status: tc.status, Visibility: "public", AuthorID: u.ID,
+			Lang: tc.lang, TranslationGroup: "grp", PublishedAt: "2024-02-01T00:00:00Z",
+		}); err != nil {
+			t.Fatalf("%s: %v", tc.slug, err)
+		}
+	}
+
+	all := decode(t, get(t, h, "/posts", testKey))
+	before := all["meta"].(map[string]any)["total"].(float64)
+
+	ja := decode(t, get(t, h, "/posts?lang=ja", testKey))
+	posts := ja["posts"].([]any)
+	if len(posts) != 1 {
+		t.Fatalf("lang=ja returned %d posts, want 1", len(posts))
+	}
+	first := posts[0].(map[string]any)
+	if first["slug"] != "konnichiwa" || first["lang"] != "ja" {
+		t.Errorf("got %v", first)
+	}
+	// The count must be filtered too, or the pager lies.
+	if got := ja["meta"].(map[string]any)["total"].(float64); got != 1 {
+		t.Errorf("lang=ja total = %v, want 1", got)
+	}
+	if before <= 1 {
+		t.Errorf("unfiltered total = %v, expected every language", before)
+	}
+
+	// Siblings expose only published translations, never the draft.
+	tr := first["translations"].(map[string]any)
+	if tr["ja"] != "konnichiwa" || tr["id"] != "halo" {
+		t.Errorf("translations = %v", tr)
+	}
+	if _, leaked := tr["draft-ja"]; leaked {
+		t.Error("a draft translation leaked into the public API")
+	}
+
+	// An unknown language is an empty page, not an error.
+	w := get(t, h, "/posts?lang=klingon", testKey)
+	if w.Code != http.StatusOK {
+		t.Fatalf("unknown lang = %d, want 200", w.Code)
+	}
+	if got := decode(t, w)["posts"].([]any); len(got) != 0 {
+		t.Errorf("unknown lang returned %d posts", len(got))
 	}
 }

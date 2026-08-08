@@ -7,6 +7,14 @@ import (
 	"github.com/RizkyChandra/kaku/internal/i18n"
 )
 
+// TagRowView is a tag labelled for the reader's language plus its translations,
+// keyed by language code. Tags are shared across languages - one row, one slug,
+// a name per language - so the row shows which languages are still missing one.
+type TagRowView struct {
+	db.ListTagsLabelledRow
+	Trans map[string]db.TagTranslation
+}
+
 func tagPath(id int64, suffix string) string {
 	return "/admin/tags/" + strconv.FormatInt(id, 10) + suffix
 }
@@ -14,13 +22,24 @@ func tagPath(id int64, suffix string) string {
 // tagRowPath carries the post count along with the row fragment routes: no
 // single-tag query has it, and it is display-only, so the row hands it back
 // instead of earning a query per edit. See tagLookup.
-func tagRowPath(t db.ListTagsRow, suffix string) string {
+func tagRowPath(t TagRowView, suffix string) string {
 	return tagPath(t.ID, suffix) + "?posts=" + strconv.FormatInt(t.PostCount, 10)
+}
+
+func tagFieldID(id int64, prefix, lang string) string {
+	return prefix + "-" + strconv.FormatInt(id, 10) + "-" + lang
+}
+
+func tagLangClass(translated bool) string {
+	if translated {
+		return "rounded bg-ink-100 px-1 text-ink-600"
+	}
+	return "rounded px-1 text-ink-300"
 }
 
 // Tags is the whole tag screen: a create form above the table. Editing happens
 // in place, one row at a time.
-templ Tags(p Page, tags []db.ListTagsRow, page, pages int, errMsg string) {
+templ Tags(p Page, tags []TagRowView, page, pages int, errMsg string) {
 	@Shell(p) {
 		@PageHeader(i18n.T(ctx, "tags.title"))
 		<form method="post" action="/admin/tags" class="mb-8 rounded-lg border border-ink-200 bg-white p-6">
@@ -68,9 +87,17 @@ templ Tags(p Page, tags []db.ListTagsRow, page, pages int, errMsg string) {
 }
 
 // TagRow is both a row of the table and the htmx swap target for editing it.
-templ TagRow(t db.ListTagsRow) {
+templ TagRow(t TagRowView) {
 	<tr class="border-b border-ink-100 last:border-0">
-		<td class="px-4 py-3 font-medium">{ t.Name }</td>
+		<td class="px-4 py-3 font-medium">
+			{ t.Label }
+			<span class="ml-2 space-x-1 text-[10px] uppercase" title={ i18n.T(ctx, "tags.translations") }>
+				for _, l := range i18n.Available() {
+					{{ _, ok := t.Trans[l.Code] }}
+					<span class={ tagLangClass(ok) }>{ l.Code }</span>
+				}
+			</span>
+		</td>
 		<td class="px-4 py-3 text-ink-600"><code>{ t.Slug }</code></td>
 		<td class="px-4 py-3 text-ink-600">{ strconv.FormatInt(t.PostCount, 10) }</td>
 		<td class="px-4 py-3 text-right">
@@ -80,20 +107,20 @@ templ TagRow(t db.ListTagsRow) {
 				hx-target="closest tr"
 				hx-swap="outerHTML"
 				class="text-ink-600 underline underline-offset-2 hover:text-vermilion"
-			>{ i18n.T(ctx, "tags.edit") }<span class="sr-only">{ " " + t.Name }</span></button>
+			>{ i18n.T(ctx, "tags.edit") }<span class="sr-only">{ " " + t.Label }</span></button>
 			<button
 				type="button"
 				hx-post={ tagPath(t.ID, "/delete") }
 				hx-target="closest tr"
 				hx-swap="outerHTML"
-				hx-confirm={ i18n.T(ctx, "tags.confirmDelete", t.Name) }
+				hx-confirm={ i18n.T(ctx, "tags.confirmDelete", t.Label) }
 				class="ml-4 text-ink-600 underline underline-offset-2 hover:text-vermilion"
-			>{ i18n.T(ctx, "tags.delete") }<span class="sr-only">{ " " + t.Name }</span></button>
+			>{ i18n.T(ctx, "tags.delete") }<span class="sr-only">{ " " + t.Label }</span></button>
 		</td>
 	</tr>
 }
 
-templ TagEditRow(t db.ListTagsRow, errMsg string) {
+templ TagEditRow(t TagRowView, errMsg string) {
 	<tr class="border-b border-ink-100 bg-ink-50 last:border-0">
 		<td colspan="4" class="px-4 py-3">
 			if errMsg != "" {
@@ -128,6 +155,33 @@ templ TagEditRow(t db.ListTagsRow, errMsg string) {
 						class="mt-1 w-full rounded-md border border-ink-200 px-2 py-1 focus:border-vermilion focus:outline-none"
 					/>
 				</div>
+				<fieldset class="w-full border-t border-ink-200 pt-3">
+					<legend class="text-xs font-medium">{ i18n.T(ctx, "tags.translations") }</legend>
+					<p class="text-xs text-ink-400">{ i18n.T(ctx, "tags.translationsHelp") }</p>
+					for _, l := range i18n.Available() {
+						<div class="mt-2 flex flex-wrap items-end gap-3">
+							<span class="w-24 shrink-0 py-1 text-xs text-ink-600">{ l.Name }</span>
+							<div>
+								<label class="block text-xs font-medium" for={ tagFieldID(t.ID, "tname", l.Code) }>{ i18n.T(ctx, "tags.name") }</label>
+								<input
+									id={ tagFieldID(t.ID, "tname", l.Code) }
+									name={ "name_" + l.Code }
+									value={ t.Trans[l.Code].Name }
+									class="mt-1 rounded-md border border-ink-200 px-2 py-1 focus:border-vermilion focus:outline-none"
+								/>
+							</div>
+							<div class="grow">
+								<label class="block text-xs font-medium" for={ tagFieldID(t.ID, "tdesc", l.Code) }>{ i18n.T(ctx, "tags.description") }</label>
+								<input
+									id={ tagFieldID(t.ID, "tdesc", l.Code) }
+									name={ "description_" + l.Code }
+									value={ t.Trans[l.Code].Description }
+									class="mt-1 w-full rounded-md border border-ink-200 px-2 py-1 focus:border-vermilion focus:outline-none"
+								/>
+							</div>
+						</div>
+					}
+				</fieldset>
 				<button type="submit" class="rounded-md bg-vermilion px-3 py-1.5 text-sm font-medium text-white hover:bg-vermilion-dark">{ i18n.T(ctx, "tags.save") }</button>
 				<button
 					type="button"

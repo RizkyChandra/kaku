@@ -13,5 +13,7 @@
   "tags.confirmDelete": "Delete %s? Posts tagged with it keep their other tags.",
   "tags.save": "Save tag",
   "tags.cancel": "Cancel",
-  "tags.errNameRequired": "A tag needs a name."
+  "tags.errNameRequired": "A tag needs a name.",
+  "tags.translations": "Translations",
+  "tags.translationsHelp": "One name per language. The slug is shared, so a tag finds its posts in every language. Leave a name empty to fall back to the tag's own name."
 }
