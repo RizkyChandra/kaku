@@ -44,7 +44,7 @@ All configuration is environment variables. See [`.env.example`](.env.example).
 | `KAKU_ADDR` | `:8080` | listen address |
 | `KAKU_URL` | `http://localhost:8080` | public base URL |
 | `KAKU_ENV` | `production` | `development` relaxes cookie `Secure` |
-| `KAKU_DB_PATH` | `/data/kaku.db` | SQLite file |
+| `KAKU_DB_PATH` | `/data/kaku.db` | SQLite file. Leave unset on a host with volumes (Railway): it follows the mount automatically |
 | `KAKU_ROOT_EMAIL` | — | owner account, created on first boot |
 | `KAKU_ROOT_PASSWORD` | — | owner password |
 | `KAKU_LOCALES_DIR` | — | extra admin translations, see below |
