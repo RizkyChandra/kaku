@@ -37,7 +37,9 @@ func Open(ctx context.Context, path string) (*sql.DB, error) {
 
 	if err := sqlDB.PingContext(ctx); err != nil {
 		sqlDB.Close()
-		return nil, err
+		// SQLite reports only "unable to open database file", which on a mounted
+		// volume is almost always ownership rather than a wrong path.
+		return nil, fmt.Errorf("open %s (is it writable by the container's user?): %w", path, err)
 	}
 	if err := Migrate(ctx, sqlDB); err != nil {
 		sqlDB.Close()

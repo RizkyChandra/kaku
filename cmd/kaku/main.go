@@ -33,7 +33,10 @@ var version = "dev"
 
 func main() {
 	if err := run(); err != nil {
-		slog.Error("fatal", "err", err)
+		// The reason goes in the message, not an attribute: hosting dashboards
+		// show the message and fold attributes away, and a crash loop reading
+		// "fatal" tells an operator nothing about which variable to fix.
+		slog.Error(err.Error())
 		os.Exit(1)
 	}
 }
