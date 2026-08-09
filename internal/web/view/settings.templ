@@ -34,7 +34,7 @@ type SettingsData struct {
 // Its two sentences are translated in halves, either side of the literal they
 // name, so a language can put that literal where its own word order wants it.
 templ BackupPanel(enabled bool, msg, errMsg string) {
-	<section id="backup" class="mt-8 rounded-lg border border-ink-200 bg-white p-5">
+	<section id="backup" class="mt-8 rounded-lg border border-ink-200 bg-surface p-5">
 		<h2 class="font-serif text-lg">{ i18n.T(ctx, "settings.backup.title") }</h2>
 		if !enabled {
 			<p class="mt-1 text-sm text-ink-600">
@@ -66,9 +66,9 @@ templ Settings(d SettingsData) {
 		@PageHeader(i18n.T(ctx, "settings.title")) {
 		}
 		if d.Saved {
-			<p class="mb-6 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-600" role="status">{ i18n.T(ctx, "settings.saved") }</p>
+			<p class="mb-6 rounded-md border border-ink-200 bg-surface px-3 py-2 text-sm text-ink-600" role="status">{ i18n.T(ctx, "settings.saved") }</p>
 		}
-		<form method="post" action="/admin/settings" class="rounded-lg border border-ink-200 bg-white p-6">
+		<form method="post" action="/admin/settings" class="rounded-lg border border-ink-200 bg-surface p-6">
 			for _, f := range d.Fields {
 				@settingRow(f, d.Values[f.Key], d.Errors[f.Key])
 			}
@@ -113,7 +113,7 @@ templ settingRow(f SettingField, value, errMsg string) {
 }
 
 templ settingsEnv(rows []EnvRow) {
-	<section class="mt-8 rounded-lg border border-ink-200 bg-white p-6" aria-labelledby="env-heading">
+	<section class="mt-8 rounded-lg border border-ink-200 bg-surface p-6" aria-labelledby="env-heading">
 		<h2 id="env-heading" class="font-serif text-xl">{ i18n.T(ctx, "settings.env.title") }</h2>
 		<p class="mt-1 max-w-prose text-sm text-ink-600">
 			{ i18n.T(ctx, "settings.env.note") }

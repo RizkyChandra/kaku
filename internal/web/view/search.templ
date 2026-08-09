@@ -93,7 +93,7 @@ templ SearchHits(res SearchResults) {
 	} else if len(res.Rows) == 0 {
 		<p class="text-ink-600">{ i18n.T(ctx, "search.empty", res.Query) }</p>
 	} else {
-		<ul class="divide-y divide-ink-100 overflow-hidden rounded-lg border border-ink-200 bg-white">
+		<ul class="divide-y divide-ink-100 overflow-hidden rounded-lg border border-ink-200 bg-surface">
 			for _, row := range res.Rows {
 				<li class="p-4">
 					<div class="flex items-baseline justify-between gap-3">

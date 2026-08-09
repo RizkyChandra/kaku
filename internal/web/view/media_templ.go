@@ -66,7 +66,7 @@ func Media(p Page, m MediaList) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if m.Configured {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<form class=\"mb-8 rounded-lg border border-dashed border-ink-200 bg-white p-6\" hx-post=\"/admin/media\" hx-encoding=\"multipart/form-data\" hx-target=\"#grid\" hx-swap=\"afterbegin\" hx-indicator=\"#uploading\"><label for=\"file\" class=\"block text-sm font-medium\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<form class=\"mb-8 rounded-lg border border-dashed border-ink-200 bg-surface p-6\" hx-post=\"/admin/media\" hx-encoding=\"multipart/form-data\" hx-target=\"#grid\" hx-swap=\"afterbegin\" hx-indicator=\"#uploading\"><label for=\"file\" class=\"block text-sm font-medium\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -123,7 +123,7 @@ func Media(p Page, m MediaList) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "  <p class=\"mb-8 rounded-lg border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "  <p class=\"mb-8 rounded-lg border border-ink-200 bg-surface px-4 py-3 text-sm text-ink-600\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -351,7 +351,7 @@ func MediaTile(m db.Medium, canDelete bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" class=\"overflow-hidden rounded-lg border border-ink-200 bg-white\"><img src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" class=\"overflow-hidden rounded-lg border border-ink-200 bg-surface\"><img src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

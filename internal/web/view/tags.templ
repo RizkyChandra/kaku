@@ -42,7 +42,7 @@ func tagLangClass(translated bool) string {
 templ Tags(p Page, tags []TagRowView, page, pages int, errMsg string) {
 	@Shell(p) {
 		@PageHeader(i18n.T(ctx, "tags.title"))
-		<form method="post" action="/admin/tags" class="mb-8 rounded-lg border border-ink-200 bg-white p-6">
+		<form method="post" action="/admin/tags" class="mb-8 rounded-lg border border-ink-200 bg-surface p-6">
 			if errMsg != "" {
 				<p class="mb-4 rounded-md bg-vermilion/10 px-3 py-2 text-sm text-vermilion-dark" role="alert">{ errMsg }</p>
 			}
@@ -62,7 +62,7 @@ templ Tags(p Page, tags []TagRowView, page, pages int, errMsg string) {
 			</div>
 			<button type="submit" class="mt-4 rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">{ i18n.T(ctx, "tags.add") }</button>
 		</form>
-		<div class="overflow-hidden rounded-lg border border-ink-200 bg-white">
+		<div class="overflow-hidden rounded-lg border border-ink-200 bg-surface">
 			<table class="w-full text-left text-sm">
 				<thead class="border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400">
 					<tr>

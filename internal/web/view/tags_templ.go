@@ -84,7 +84,7 @@ func Tags(p Page, tags []TagRowView, page, pages int, errMsg string) templ.Compo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, " <form method=\"post\" action=\"/admin/tags\" class=\"mb-8 rounded-lg border border-ink-200 bg-white p-6\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, " <form method=\"post\" action=\"/admin/tags\" class=\"mb-8 rounded-lg border border-ink-200 bg-surface p-6\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -172,7 +172,7 @@ func Tags(p Page, tags []TagRowView, page, pages int, errMsg string) templ.Compo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</button></form><div class=\"overflow-hidden rounded-lg border border-ink-200 bg-white\"><table class=\"w-full text-left text-sm\"><thead class=\"border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400\"><tr><th scope=\"col\" class=\"px-4 py-3 font-medium\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</button></form><div class=\"overflow-hidden rounded-lg border border-ink-200 bg-surface\"><table class=\"w-full text-left text-sm\"><thead class=\"border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400\"><tr><th scope=\"col\" class=\"px-4 py-3 font-medium\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

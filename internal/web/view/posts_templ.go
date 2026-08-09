@@ -261,7 +261,7 @@ func Posts(p Page, l PostList) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(l.Rows) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p class=\"rounded-lg border border-ink-200 bg-white p-8 text-ink-600\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p class=\"rounded-lg border border-ink-200 bg-surface p-8 text-ink-600\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -305,7 +305,7 @@ func Posts(p Page, l PostList) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"overflow-x-auto rounded-lg border border-ink-200 bg-white\"><table class=\"w-full text-left text-sm\"><thead class=\"border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400\"><tr><th scope=\"col\" class=\"px-4 py-3 font-medium\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"overflow-x-auto rounded-lg border border-ink-200 bg-surface\"><table class=\"w-full text-left text-sm\"><thead class=\"border-b border-ink-200 text-xs uppercase tracking-wide text-ink-400\"><tr><th scope=\"col\" class=\"px-4 py-3 font-medium\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

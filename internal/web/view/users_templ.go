@@ -258,7 +258,7 @@ func Users(p Page, users []db.User, page, pages int, errMsg string) templ.Compon
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " <div class=\"overflow-hidden rounded-lg border border-ink-200 bg-white\"><table class=\"w-full text-left text-sm\"><thead class=\"border-b border-ink-200 text-ink-600\"><tr><th scope=\"col\" class=\"px-4 py-3 font-medium\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " <div class=\"overflow-hidden rounded-lg border border-ink-200 bg-surface\"><table class=\"w-full text-left text-sm\"><thead class=\"border-b border-ink-200 text-ink-600\"><tr><th scope=\"col\" class=\"px-4 py-3 font-medium\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -601,7 +601,7 @@ func UserForm(p Page, f UserFormData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, " class=\"max-w-xl rounded-lg border border-ink-200 bg-white p-6\"><label class=\"block text-sm font-medium\" for=\"name\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, " class=\"max-w-xl rounded-lg border border-ink-200 bg-surface p-6\"><label class=\"block text-sm font-medium\" for=\"name\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -666,7 +666,7 @@ func UserForm(p Page, f UserFormData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</label> <select id=\"role\" name=\"role\" class=\"mt-1 mb-4 w-full rounded-md border border-ink-200 bg-white px-3 py-2 focus:border-vermilion focus:outline-none\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</label> <select id=\"role\" name=\"role\" class=\"mt-1 mb-4 w-full rounded-md border border-ink-200 bg-surface px-3 py-2 focus:border-vermilion focus:outline-none\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -848,7 +848,7 @@ func UserForm(p Page, f UserFormData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\" class=\"mt-6 max-w-xl rounded-lg border border-ink-200 bg-white p-6\"><h2 class=\"font-serif text-xl\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\" class=\"mt-6 max-w-xl rounded-lg border border-ink-200 bg-surface p-6\"><h2 class=\"font-serif text-xl\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -983,7 +983,7 @@ func Profile(p Page, u db.User, errMsg, okMsg string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, " <form method=\"post\" action=\"/admin/profile\" class=\"max-w-xl rounded-lg border border-ink-200 bg-white p-6\"><p class=\"mb-4 text-sm text-ink-600\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, " <form method=\"post\" action=\"/admin/profile\" class=\"max-w-xl rounded-lg border border-ink-200 bg-surface p-6\"><p class=\"mb-4 text-sm text-ink-600\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1087,7 +1087,7 @@ func Profile(p Page, u db.User, errMsg, okMsg string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</button></form><form method=\"post\" action=\"/admin/profile/password\" class=\"mt-6 max-w-xl rounded-lg border border-ink-200 bg-white p-6\"><h2 class=\"font-serif text-xl\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</button></form><form method=\"post\" action=\"/admin/profile/password\" class=\"mt-6 max-w-xl rounded-lg border border-ink-200 bg-surface p-6\"><h2 class=\"font-serif text-xl\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

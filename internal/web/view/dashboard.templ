@@ -35,12 +35,12 @@ templ Dashboard(p Page, d DashboardData) {
 			}
 		</dl>
 		if d.Drafts > 0 || d.Scheduled > 0 {
-			<p class="mb-8 rounded-lg border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600">
+			<p class="mb-8 rounded-lg border border-ink-200 bg-surface px-4 py-3 text-sm text-ink-600">
 				{ needsAttention(ctx, d.Drafts, d.Scheduled) }
 				<a href="/admin/posts?status=draft" class="ml-1 text-vermilion underline underline-offset-2">{ i18n.T(ctx, "dashboard.review") }</a>
 			</p>
 		}
-		<section class="rounded-lg border border-ink-200 bg-white">
+		<section class="rounded-lg border border-ink-200 bg-surface">
 			<h2 class="border-b border-ink-200 px-5 py-3 font-serif text-lg">{ i18n.T(ctx, "dashboard.recent") }</h2>
 			if len(d.Recent) == 0 {
 				<p class="px-5 py-6 text-ink-600">
@@ -63,7 +63,7 @@ templ Dashboard(p Page, d DashboardData) {
 }
 
 templ statTile(s Stat) {
-	<div class="rounded-lg border border-ink-200 bg-white px-4 py-3">
+	<div class="rounded-lg border border-ink-200 bg-surface px-4 py-3">
 		<dt class="text-xs text-ink-400">{ i18n.T(ctx, s.Label) }</dt>
 		<dd class="mt-0.5 font-serif text-2xl">
 			if s.Href != "" {

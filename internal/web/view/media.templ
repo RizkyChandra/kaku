@@ -21,7 +21,7 @@ templ Media(p Page, m MediaList) {
 		@PageHeader(i18n.T(ctx, "media.title"))
 		if m.Configured {
 			<form
-				class="mb-8 rounded-lg border border-dashed border-ink-200 bg-white p-6"
+				class="mb-8 rounded-lg border border-dashed border-ink-200 bg-surface p-6"
 				hx-post="/admin/media"
 				hx-encoding="multipart/form-data"
 				hx-target="#grid"
@@ -46,7 +46,7 @@ templ Media(p Page, m MediaList) {
 		} else {
 			// Two keys, not one: the bucket variable sits mid-sentence and word
 			// order around it differs by language.
-			<p class="mb-8 rounded-lg border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600">
+			<p class="mb-8 rounded-lg border border-ink-200 bg-surface px-4 py-3 text-sm text-ink-600">
 				{ i18n.T(ctx, "media.disabled.before") }
 				<code class="rounded bg-ink-100 px-1 py-0.5">KAKU_S3_BUCKET</code>
 				{ i18n.T(ctx, "media.disabled.after") }
@@ -90,7 +90,7 @@ func mediaAltText(m db.Medium) string {
 // MediaTile is also served on its own as the htmx fragment for a new upload
 // and after a caption edit.
 templ MediaTile(m db.Medium, canDelete bool) {
-	<figure id={ fmt.Sprintf("media-%d", m.ID) } class="overflow-hidden rounded-lg border border-ink-200 bg-white">
+	<figure id={ fmt.Sprintf("media-%d", m.ID) } class="overflow-hidden rounded-lg border border-ink-200 bg-surface">
 		// Fixed square tiles with explicit width/height and object-cover keep
 		// the browser from laying out and painting at full resolution, and
 		// decoding off the main thread keeps the grid scrollable. It does NOT

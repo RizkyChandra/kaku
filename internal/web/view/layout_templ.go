@@ -182,7 +182,7 @@ func Shell(p Page) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</head><body class=\"h-full bg-ink-50 text-ink-900 font-sans antialiased\"><div class=\"flex h-full\"><aside class=\"hidden w-56 shrink-0 flex-col border-r border-ink-200 bg-white md:flex\"><a href=\"/admin\" class=\"flex items-baseline gap-2 px-6 py-6\"><span class=\"font-serif text-2xl leading-none text-vermilion\">書</span> <span class=\"truncate font-serif text-xl leading-none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</head><body class=\"h-full bg-ink-50 text-ink-900 font-sans antialiased\"><div class=\"flex h-full\"><aside class=\"hidden w-56 shrink-0 flex-col border-r border-ink-200 bg-surface md:flex\"><a href=\"/admin\" class=\"flex items-baseline gap-2 px-6 py-6\"><span class=\"font-serif text-2xl leading-none text-vermilion\">書</span> <span class=\"truncate font-serif text-xl leading-none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -390,7 +390,7 @@ func languagePicker(p Page) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</label> <select id=\"lang\" name=\"lang\" onchange=\"this.form.submit()\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-white px-2 py-1 text-sm focus:border-vermilion focus:outline-none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</label> <select id=\"lang\" name=\"lang\" onchange=\"this.form.submit()\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-surface px-2 py-1 text-sm focus:border-vermilion focus:outline-none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

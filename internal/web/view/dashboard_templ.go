@@ -115,7 +115,7 @@ func Dashboard(p Page, d DashboardData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if d.Drafts > 0 || d.Scheduled > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"mb-8 rounded-lg border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"mb-8 rounded-lg border border-ink-200 bg-surface px-4 py-3 text-sm text-ink-600\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -146,7 +146,7 @@ func Dashboard(p Page, d DashboardData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " <section class=\"rounded-lg border border-ink-200 bg-white\"><h2 class=\"border-b border-ink-200 px-5 py-3 font-serif text-lg\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " <section class=\"rounded-lg border border-ink-200 bg-surface\"><h2 class=\"border-b border-ink-200 px-5 py-3 font-serif text-lg\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -297,7 +297,7 @@ func statTile(s Stat) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"rounded-lg border border-ink-200 bg-white px-4 py-3\"><dt class=\"text-xs text-ink-400\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"rounded-lg border border-ink-200 bg-surface px-4 py-3\"><dt class=\"text-xs text-ink-400\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

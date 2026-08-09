@@ -35,7 +35,7 @@ templ APIKeys(p Page, keys []db.ListApiKeysRow, created, errMsg string) {
 				required
 				maxlength="80"
 				placeholder={ i18n.T(ctx, "keys.namePlaceholder") }
-				class="w-72 rounded-md border border-ink-200 bg-white px-3 py-2 focus:border-vermilion focus:outline-none"
+				class="w-72 rounded-md border border-ink-200 bg-surface px-3 py-2 focus:border-vermilion focus:outline-none"
 			/>
 			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">
 				{ i18n.T(ctx, "keys.create") }
@@ -47,7 +47,7 @@ templ APIKeys(p Page, keys []db.ListApiKeysRow, created, errMsg string) {
 
 // APIKeyTable is its own component so revoking can swap just the table.
 templ APIKeyTable(keys []db.ListApiKeysRow) {
-	<div id="keys" class="overflow-hidden rounded-lg border border-ink-200 bg-white">
+	<div id="keys" class="overflow-hidden rounded-lg border border-ink-200 bg-surface">
 		if len(keys) == 0 {
 			<p class="px-4 py-10 text-center text-ink-400">{ i18n.T(ctx, "keys.empty") }</p>
 		} else {

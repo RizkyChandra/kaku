@@ -241,7 +241,7 @@ func Editor(p Page, e EditorData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " class=\"mt-1 mb-6 w-full rounded-md border border-ink-200 bg-white px-3 py-2 font-serif text-2xl focus:border-vermilion focus:outline-none\"><div class=\"grid gap-6 lg:grid-cols-3\"><div class=\"grid gap-4 md:grid-cols-2 lg:col-span-2\"><div class=\"flex min-w-0 flex-col\"><label class=\"mb-1 text-sm font-medium\" for=\"markdown\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " class=\"mt-1 mb-6 w-full rounded-md border border-ink-200 bg-surface px-3 py-2 font-serif text-2xl focus:border-vermilion focus:outline-none\"><div class=\"grid gap-6 lg:grid-cols-3\"><div class=\"grid gap-4 md:grid-cols-2 lg:col-span-2\"><div class=\"flex min-w-0 flex-col\"><label class=\"mb-1 text-sm font-medium\" for=\"markdown\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -254,7 +254,7 @@ func Editor(p Page, e EditorData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</label> <textarea id=\"markdown\" name=\"markdown\" spellcheck=\"true\" class=\"h-[60vh] w-full resize-y rounded-md border border-ink-200 bg-white p-3 font-mono text-sm leading-relaxed focus:border-vermilion focus:outline-none\" hx-post=\"/admin/preview\" hx-trigger=\"keyup changed delay:400ms from:closest form\" hx-target=\"#preview\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</label> <textarea id=\"markdown\" name=\"markdown\" spellcheck=\"true\" class=\"h-[60vh] w-full resize-y rounded-md border border-ink-200 bg-surface p-3 font-mono text-sm leading-relaxed focus:border-vermilion focus:outline-none\" hx-post=\"/admin/preview\" hx-trigger=\"keyup changed delay:400ms from:closest form\" hx-target=\"#preview\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -280,7 +280,7 @@ func Editor(p Page, e EditorData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</h2><div id=\"preview\" aria-live=\"polite\" class=\"h-[60vh] overflow-y-auto rounded-md border border-ink-200 bg-white p-3 text-ink-800 [&_a]:text-vermilion [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-ink-200 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-ink-100 [&_code]:px-1 [&_h1]:font-serif [&_h1]:text-2xl [&_h2]:font-serif [&_h2]:text-xl [&_h3]:font-serif [&_h3]:text-lg [&_img]:max-w-full [&_li]:ml-5 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-ink-100 [&_pre]:p-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</h2><div id=\"preview\" aria-live=\"polite\" class=\"h-[60vh] overflow-y-auto rounded-md border border-ink-200 bg-surface p-3 text-ink-800 [&_a]:text-vermilion [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-ink-200 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-ink-100 [&_code]:px-1 [&_h1]:font-serif [&_h1]:text-2xl [&_h2]:font-serif [&_h2]:text-xl [&_h3]:font-serif [&_h3]:text-lg [&_img]:max-w-full [&_li]:ml-5 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-ink-100 [&_pre]:p-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -384,7 +384,7 @@ func settings(e EditorData) templ.Component {
 			templ_7745c5c3_Var18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"space-y-4 rounded-lg border border-ink-200 bg-white p-4\"><div><label class=\"block text-sm font-medium\" for=\"slug\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"space-y-4 rounded-lg border border-ink-200 bg-surface p-4\"><div><label class=\"block text-sm font-medium\" for=\"slug\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -441,7 +441,7 @@ func settings(e EditorData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</label> <select id=\"lang\" name=\"lang\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</label> <select id=\"lang\" name=\"lang\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-surface px-3 py-2 text-sm focus:border-vermilion focus:outline-none\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -549,7 +549,7 @@ func settings(e EditorData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</label> <select id=\"status\" name=\"status\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><option value=\"draft\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</label> <select id=\"status\" name=\"status\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-surface px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><option value=\"draft\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -664,7 +664,7 @@ func settings(e EditorData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "</label> <select id=\"visibility\" name=\"visibility\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><option value=\"public\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "</label> <select id=\"visibility\" name=\"visibility\" class=\"mt-1 w-full rounded-md border border-ink-200 bg-surface px-3 py-2 text-sm focus:border-vermilion focus:outline-none\"><option value=\"public\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -913,7 +913,7 @@ func translations(e EditorData) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if !e.IsNew() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<section class=\"rounded-lg border border-ink-200 bg-white p-4\"><h2 class=\"mb-2 text-sm font-medium\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<section class=\"rounded-lg border border-ink-200 bg-surface p-4\"><h2 class=\"mb-2 text-sm font-medium\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1091,7 +1091,7 @@ func history(e EditorData) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(e.Revisions) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<section class=\"rounded-lg border border-ink-200 bg-white p-4\"><h2 class=\"mb-2 text-sm font-medium\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<section class=\"rounded-lg border border-ink-200 bg-surface p-4\"><h2 class=\"mb-2 text-sm font-medium\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

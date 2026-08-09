@@ -53,7 +53,7 @@ func Login(next, errMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body class=\"flex h-full items-center justify-center bg-ink-50 px-4 text-ink-900 font-sans antialiased\"><main class=\"w-full max-w-sm\"><div class=\"mb-8 flex items-baseline justify-center gap-2\"><span class=\"font-serif text-3xl leading-none text-vermilion\">書</span> <span class=\"font-serif text-2xl leading-none\">Kaku</span></div><form method=\"post\" action=\"/admin/login\" class=\"rounded-lg border border-ink-200 bg-white p-6\"><input type=\"hidden\" name=\"next\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body class=\"flex h-full items-center justify-center bg-ink-50 px-4 text-ink-900 font-sans antialiased\"><main class=\"w-full max-w-sm\"><div class=\"mb-8 flex items-baseline justify-center gap-2\"><span class=\"font-serif text-3xl leading-none text-vermilion\">書</span> <span class=\"font-serif text-2xl leading-none\">Kaku</span></div><form method=\"post\" action=\"/admin/login\" class=\"rounded-lg border border-ink-200 bg-surface p-6\"><input type=\"hidden\" name=\"next\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

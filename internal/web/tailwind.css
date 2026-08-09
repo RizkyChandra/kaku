@@ -16,7 +16,34 @@
   --color-ink-900: #1b1917;
   --color-vermilion: #c8442a;
   --color-vermilion-dark: #a63722;
+  /* Cards and inputs sit on the page tint; a token rather than bg-white so the
+     dark scheme can raise them instead of painting them white. */
+  --color-surface: #ffffff;
 
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-serif: ui-serif, "Iowan Old Style", Georgia, serif;
+}
+
+/* Dark mode follows the operating system. The ink ramp is redefined rather than
+   flipped in the markup, so every existing utility keeps its meaning: ink-50 is
+   still the page, ink-900 is still the text. text-white stays white because it
+   only ever sits on vermilion. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink-50: #161513;
+    --color-ink-100: #22201d;
+    --color-ink-200: #38342f;
+    --color-ink-400: #979187;
+    --color-ink-600: #c3bdb3;
+    --color-ink-800: #e7e3dc;
+    --color-ink-900: #f4f2ee;
+    --color-vermilion: #e0573a;
+    --color-vermilion-dark: #c8442a;
+    --color-surface: #1d1b19;
+  }
+}
+
+/* Native widgets (selects, scrollbars, form controls) follow the same scheme. */
+:root {
+  color-scheme: light dark;
 }

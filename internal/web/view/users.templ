@@ -61,7 +61,7 @@ templ Users(p Page, users []db.User, page, pages int, errMsg string) {
 			</a>
 		}
 		@userAlert(errMsg)
-		<div class="overflow-hidden rounded-lg border border-ink-200 bg-white">
+		<div class="overflow-hidden rounded-lg border border-ink-200 bg-surface">
 			<table class="w-full text-left text-sm">
 				<thead class="border-b border-ink-200 text-ink-600">
 					<tr>
@@ -122,14 +122,14 @@ templ UserForm(p Page, f UserFormData) {
 			} else {
 				action={ userPath(f.Target.ID, "") }
 			}
-			class="max-w-xl rounded-lg border border-ink-200 bg-white p-6"
+			class="max-w-xl rounded-lg border border-ink-200 bg-surface p-6"
 		>
 			<label class="block text-sm font-medium" for="name">{ i18n.T(ctx, "users.name") }</label>
 			<input id="name" name="name" type="text" value={ f.Target.Name } required autocomplete="name" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 			<label class="block text-sm font-medium" for="email">{ i18n.T(ctx, "users.email") }</label>
 			<input id="email" name="email" type="email" value={ f.Target.Email } required autocomplete="email" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 			<label class="block text-sm font-medium" for="role">{ i18n.T(ctx, "users.role") }</label>
-			<select id="role" name="role" class="mt-1 mb-4 w-full rounded-md border border-ink-200 bg-white px-3 py-2 focus:border-vermilion focus:outline-none">
+			<select id="role" name="role" class="mt-1 mb-4 w-full rounded-md border border-ink-200 bg-surface px-3 py-2 focus:border-vermilion focus:outline-none">
 				for _, role := range f.Roles {
 					// The value stays the auth.Role* constant; only the label translates.
 					<option value={ role } selected?={ role == f.Target.Role }>{ i18n.T(ctx, "users.role."+role) }</option>
@@ -154,7 +154,7 @@ templ UserForm(p Page, f UserFormData) {
 			</button>
 		</form>
 		if f.Target.ID != 0 && (p.User == nil || p.User.ID != f.Target.ID) {
-			<form method="post" action={ userPath(f.Target.ID, "/password") } class="mt-6 max-w-xl rounded-lg border border-ink-200 bg-white p-6">
+			<form method="post" action={ userPath(f.Target.ID, "/password") } class="mt-6 max-w-xl rounded-lg border border-ink-200 bg-surface p-6">
 				<h2 class="font-serif text-xl">{ i18n.T(ctx, "users.setPassword") }</h2>
 				<p class="mt-1 mb-4 text-sm text-ink-600">{ i18n.T(ctx, "users.setPassword.note", f.Target.Name) }</p>
 				<label class="block text-sm font-medium" for="new-password">{ i18n.T(ctx, "users.newPassword") }</label>
@@ -174,7 +174,7 @@ templ Profile(p Page, u db.User, errMsg, okMsg string) {
 		if okMsg != "" {
 			<p class="mb-6 rounded-md bg-ink-100 px-3 py-2 text-sm text-ink-800" role="status">{ okMsg }</p>
 		}
-		<form method="post" action="/admin/profile" class="max-w-xl rounded-lg border border-ink-200 bg-white p-6">
+		<form method="post" action="/admin/profile" class="max-w-xl rounded-lg border border-ink-200 bg-surface p-6">
 			<p class="mb-4 text-sm text-ink-600">
 				{ i18n.T(ctx, "users.profile.signedIn", u.Email, i18n.T(ctx, "users.role."+u.Role)) }
 			</p>
@@ -186,7 +186,7 @@ templ Profile(p Page, u db.User, errMsg, okMsg string) {
 			<input id="image_url" name="image_url" type="url" value={ u.ImageUrl } class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
 			<button type="submit" class="rounded-md bg-vermilion px-3 py-2 text-sm font-medium text-white hover:bg-vermilion-dark">{ i18n.T(ctx, "users.profile.save") }</button>
 		</form>
-		<form method="post" action="/admin/profile/password" class="mt-6 max-w-xl rounded-lg border border-ink-200 bg-white p-6">
+		<form method="post" action="/admin/profile/password" class="mt-6 max-w-xl rounded-lg border border-ink-200 bg-surface p-6">
 			<h2 class="font-serif text-xl">{ i18n.T(ctx, "users.profile.changePassword") }</h2>
 			<label class="mt-4 block text-sm font-medium" for="current-password">{ i18n.T(ctx, "users.profile.currentPassword") }</label>
 			<input id="current-password" name="current_password" type="password" required autocomplete="current-password" class="mt-1 mb-4 w-full rounded-md border border-ink-200 px-3 py-2 focus:border-vermilion focus:outline-none"/>
