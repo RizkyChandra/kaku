@@ -5,6 +5,8 @@ users, and a read-only Content API. No themes, no members, no newsletters.
 
 Single static binary, no CGO. SQLite for storage, S3-compatible object storage for media.
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/XJzJuF?referralCode=LfYlSW&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
 ## What it does
 
 - **Posts and pages** in markdown, with a live-preview editor, drafts, scheduling, and revision history
